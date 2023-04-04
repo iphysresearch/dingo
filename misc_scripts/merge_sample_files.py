@@ -21,9 +21,7 @@ files = sorted([f for f in os.listdir(directory) if f.startswith(prefix)])
 
 # load frames and concatenate them
 print(f"Merging {len(files)} frames with dingo samples.")
-frames = []
-for f in files:
-    frames.append(pd.read_pickle(join(directory, f)))
+frames = [pd.read_pickle(join(directory, f)) for f in files]
 new_frame = pd.concat(frames)
 
 # add metadata to new frame

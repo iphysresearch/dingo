@@ -134,15 +134,11 @@ def generate_dag(inputs):
             )
             merged_importance_sampling_node_list.append(merge_node)
 
-    #
-    # 5. Plotting
-    #
-
-    plot_nodes_list = []
-    for merged_node in merged_importance_sampling_node_list:
-        if inputs.plot_node_needed:
-            plot_nodes_list.append(PlotNode(inputs, merged_node, dag=dag))
-
+    plot_nodes_list = [
+        PlotNode(inputs, merged_node, dag=dag)
+        for merged_node in merged_importance_sampling_node_list
+        if inputs.plot_node_needed
+    ]
     #
     # 6. PESummary
     #

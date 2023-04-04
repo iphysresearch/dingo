@@ -72,10 +72,8 @@ class StationaryGaussianGWLikelihood(GWSignal, Likelihood):
             raise ValueError("Strain data does not match domain.")
         # log noise evidence, independent of theta and waveform model
         self.log_Zn = sum(
-            [
-                -1 / 2.0 * inner_product(d_ifo, d_ifo)
-                for d_ifo in self.whitened_strains.values()
-            ]
+            -1 / 2.0 * inner_product(d_ifo, d_ifo)
+            for d_ifo in self.whitened_strains.values()
         )
         # For completeness (not used): there is a PSD-dependent contribution to the
         # likelihood,  which is typically ignored as it is constant for a given PSD
@@ -177,7 +175,7 @@ class StationaryGaussianGWLikelihood(GWSignal, Likelihood):
         self.t_FFT = np.arange(self.n_fft) * delta_t / self.n_fft
 
         self.shifted_strains = {}
-        for idx, dt in enumerate(self.t_FFT):
+        for dt in self.t_FFT:
             # Instead of shifting the waveform mu by + dt when computing the
             # time-marginalized likelihood, we shift the strain data by -dt. This saves
             # time for likelihood evaluations, since it can be precomputed.
@@ -279,12 +277,10 @@ class StationaryGaussianGWLikelihood(GWSignal, Likelihood):
 
         # Step 2: Compute likelihood. log_Zn is precomputed, so we only need to
         # compute the remaining terms rho2opt and kappa2
-        rho2opt = sum([inner_product(mu_ifo, mu_ifo) for mu_ifo in mu.values()])
+        rho2opt = sum(inner_product(mu_ifo, mu_ifo) for mu_ifo in mu.values())
         kappa2 = sum(
-            [
-                inner_product(d_ifo, mu_ifo)
-                for d_ifo, mu_ifo in zip(d.values(), mu.values())
-            ],
+            inner_product(d_ifo, mu_ifo)
+            for d_ifo, mu_ifo in zip(d.values(), mu.values())
         )
         return self.log_Zn + kappa2 - 1 / 2.0 * rho2opt
 
@@ -340,17 +336,15 @@ class StationaryGaussianGWLikelihood(GWSignal, Likelihood):
             mu_m = pol_m[m]
             # contribution to rho2opt_const
             rho2opt_const += sum(
-                [inner_product(mu_ifo, mu_ifo, min_idx) for mu_ifo in mu_m.values()]
+                inner_product(mu_ifo, mu_ifo, min_idx) for mu_ifo in mu_m.values()
             )
             # cross terms
             for n in m_vals[idx + 1 :]:
                 mu_n = pol_m[n]
                 # factor 2, since (m, n) and (n, m) cross terms contribute symmetrically
                 rho2opt_crossterms[(m, n)] = 2 * sum(
-                    [
-                        inner_product_complex(mu_m_ifo, mu_n_ifo, min_idx)
-                        for mu_m_ifo, mu_n_ifo in zip(mu_m.values(), mu_n.values())
-                    ]
+                    inner_product_complex(mu_m_ifo, mu_n_ifo, min_idx)
+                    for mu_m_ifo, mu_n_ifo in zip(mu_m.values(), mu_n.values())
                 )
         # kappa2 is given by
         #
@@ -366,10 +360,8 @@ class StationaryGaussianGWLikelihood(GWSignal, Likelihood):
         for m in m_vals:
             mu_m = pol_m[m]
             kappa2_modes[m] = sum(
-                [
-                    inner_product_complex(d_ifo, mu_ifo, min_idx)
-                    for d_ifo, mu_ifo in zip(d.values(), mu_m.values())
-                ]
+                inner_product_complex(d_ifo, mu_ifo, min_idx)
+                for d_ifo, mu_ifo in zip(d.values(), mu_m.values())
             )
 
         log_likelihoods = np.ones(len(phases))
@@ -380,26 +372,23 @@ class StationaryGaussianGWLikelihood(GWSignal, Likelihood):
             rho2opt = rho2opt_const
             for (m, n), c in rho2opt_crossterms.items():
                 rho2opt += (c * np.exp(-1j * (n - m) * phase)).real
-            # get kappa2
-            kappa2 = 0
-            for m in m_vals:
-                kappa2 += (kappa2_modes[m] * np.exp(-1j * m * phase)).real
+            kappa2 = sum((kappa2_modes[m] * np.exp(-1j * m * phase)).real for m in m_vals)
             rho2opt_all.append(rho2opt)
             kappa2_all.append(kappa2)
 
             log_likelihoods[idx] = self.log_Zn + kappa2 - 1 / 2.0 * rho2opt
 
-            # # comment out for cross check:
-            # mu = sum_contributions_m(pol_m, phase_shift=phase)
-            # rho2opt_ref = sum([inner_product(mu_ifo, mu_ifo) for mu_ifo in mu.values()])
-            # kappa2_ref = sum(
-            #     [
-            #         inner_product(d_ifo, mu_ifo)
-            #         for d_ifo, mu_ifo in zip(d.values(), mu.values())
-            #     ]
-            # )
-            # assert rho2opt - rho2opt_ref < 1e-10
-            # assert kappa2 - kappa2_ref < 1e-10
+                # # comment out for cross check:
+                # mu = sum_contributions_m(pol_m, phase_shift=phase)
+                # rho2opt_ref = sum([inner_product(mu_ifo, mu_ifo) for mu_ifo in mu.values()])
+                # kappa2_ref = sum(
+                #     [
+                #         inner_product(d_ifo, mu_ifo)
+                #         for d_ifo, mu_ifo in zip(d.values(), mu.values())
+                #     ]
+                # )
+                # assert rho2opt - rho2opt_ref < 1e-10
+                # assert kappa2 - kappa2_ref < 1e-10
 
         # # Test that this works:
         # idx = len(phases) // 3
@@ -432,7 +421,7 @@ class StationaryGaussianGWLikelihood(GWSignal, Likelihood):
 
             # Step 2: Compute likelihood. log_Zn is precomputed, so we only need to
             # compute the remaining terms rho2opt and kappa2
-            rho2opt = sum([inner_product(mu_ifo, mu_ifo) for mu_ifo in mu.values()])
+            rho2opt = sum(inner_product(mu_ifo, mu_ifo) for mu_ifo in mu.values())
             # For the phase marginalized likelihood, we need to replace kappa2 with
             #
             #       log I0 ( |kappa2C| ),
@@ -441,10 +430,8 @@ class StationaryGaussianGWLikelihood(GWSignal, Likelihood):
             # instead of the regular one, and I0 is the modified Bessel function of the
             # first kind of order 0.
             kappa2C = sum(
-                [
-                    inner_product_complex(d_ifo, mu_ifo)
-                    for d_ifo, mu_ifo in zip(d.values(), mu.values())
-                ]
+                inner_product_complex(d_ifo, mu_ifo)
+                for d_ifo, mu_ifo in zip(d.values(), mu.values())
             )
             return self.log_Zn + ln_i0(np.abs(kappa2C)) - 1 / 2.0 * rho2opt
 
@@ -493,7 +480,7 @@ class StationaryGaussianGWLikelihood(GWSignal, Likelihood):
         # Step 2: Compute likelihood. log_Zn is precomputed, so we only need to
         # compute the remaining terms rho2opt and kappa2.
         # rho2opt is time independent, and thus same as in the log_likelihood method.
-        rho2opt = sum([inner_product(mu_ifo, mu_ifo) for mu_ifo in mu.values()])
+        rho2opt = sum(inner_product(mu_ifo, mu_ifo) for mu_ifo in mu.values())
 
         # kappa2 is time dependent. We use FFT to compute it for the discretized times
         # k * (delta_t/n_fft) and then sum over the time bins. The kappa2 contribution
@@ -625,10 +612,8 @@ class StationaryGaussianGWLikelihood(GWSignal, Likelihood):
         mu = self.signal(theta)["waveform"]
         d = self.whitened_strains
         return sum(
-            [
-                inner_product_complex(d_ifo, mu_ifo)
-                for d_ifo, mu_ifo in zip(d.values(), mu.values())
-            ]
+            inner_product_complex(d_ifo, mu_ifo)
+            for d_ifo, mu_ifo in zip(d.values(), mu.values())
         )
 
 
@@ -662,15 +647,13 @@ def inner_product(a, b, min_idx=0, delta_f=None, psd=None):
     -------
     inner_product: float
     """
-    #
-    if psd is not None:
-        if delta_f is None:
-            raise ValueError(
-                "If unwhitened data is provided, both delta_f and psd must be provided."
-            )
-        return 4 * delta_f * np.sum((a.conj() * b / psd)[min_idx:], axis=0).real
-    else:
+    if psd is None:
         return np.sum((a.conj() * b)[min_idx:], axis=0).real
+    if delta_f is None:
+        raise ValueError(
+            "If unwhitened data is provided, both delta_f and psd must be provided."
+        )
+    return 4 * delta_f * np.sum((a.conj() * b / psd)[min_idx:], axis=0).real
 
 
 def inner_product_complex(a, b, min_idx=0, delta_f=None, psd=None):
@@ -679,15 +662,13 @@ def inner_product_complex(a, b, min_idx=0, delta_f=None, psd=None):
     information is useful for the phase-marginalized likelihood. For further
     documentation see inner_product function.
     """
-    #
-    if psd is not None:
-        if delta_f is None:
-            raise ValueError(
-                "If unwhitened data is provided, both delta_f and psd must be provided."
-            )
-        return 4 * delta_f * np.sum((a.conj() * b / psd)[min_idx:], axis=0)
-    else:
+    if psd is None:
         return np.sum((a.conj() * b)[min_idx:], axis=0)
+    if delta_f is None:
+        raise ValueError(
+            "If unwhitened data is provided, both delta_f and psd must be provided."
+        )
+    return 4 * delta_f * np.sum((a.conj() * b / psd)[min_idx:], axis=0)
 
 
 def build_stationary_gaussian_likelihood(
@@ -718,17 +699,16 @@ def build_stationary_gaussian_likelihood(
         metadata["model"], event_dataset=event_dataset, **metadata["event"]
     )
 
-    # set up likelihood
-    likelihood = StationaryGaussianGWLikelihood(
+    return StationaryGaussianGWLikelihood(
         wfg_kwargs=metadata["model"]["dataset_settings"]["waveform_generator"],
-        wfg_domain=build_domain(metadata["model"]["dataset_settings"]["domain"]),
+        wfg_domain=build_domain(
+            metadata["model"]["dataset_settings"]["domain"]
+        ),
         data_domain=data_domain,
         event_data=event_data,
         t_ref=metadata["event"]["time_event"],
         time_marginalization_kwargs=time_marginalization_kwargs,
     )
-
-    return likelihood
 
 
 def get_wfg(wfg_kwargs, data_domain, frequency_range=None):
@@ -761,10 +741,7 @@ def get_wfg(wfg_kwargs, data_domain, frequency_range=None):
         Waveform generator object.
 
     """
-    if frequency_range is None:
-        return WaveformGenerator(domain=data_domain, **wfg_kwargs)
-
-    else:
+    if frequency_range is not None:
         if "f_start" in frequency_range and frequency_range["f_start"] is not None:
             if frequency_range["f_start"] > data_domain.f_min:
                 raise ValueError("f_start must be less than f_min.")
@@ -776,7 +753,7 @@ def get_wfg(wfg_kwargs, data_domain, frequency_range=None):
             data_domain = build_domain(
                 {**data_domain.domain_dict, "f_max": frequency_range["f_end"]}
             )
-        return WaveformGenerator(domain=data_domain, **wfg_kwargs)
+    return WaveformGenerator(domain=data_domain, **wfg_kwargs)
 
 
 def main():

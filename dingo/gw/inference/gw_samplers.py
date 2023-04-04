@@ -85,22 +85,24 @@ class GWSamplerMixin(object):
         """
         # FIXME: Update this method to make sure that for models that do not include sky
         #  position, it does not do anything.
-        if self.event_metadata is not None:
-            t_event = self.event_metadata.get("time_event")
-            if t_event is not None and t_event != self.t_ref:
-                ra = samples["ra"]
-                time_reference = Time(self.t_ref, format="gps", scale="utc")
-                time_event = Time(t_event, format="gps", scale="utc")
-                longitude_event = time_event.sidereal_time("apparent", "greenwich")
-                longitude_reference = time_reference.sidereal_time(
-                    "apparent", "greenwich"
-                )
-                delta_longitude = longitude_event - longitude_reference
-                ra_correction = delta_longitude.rad
-                if not inverse:
-                    samples["ra"] = (ra + ra_correction) % (2 * np.pi)
-                else:
-                    samples["ra"] = (ra - ra_correction) % (2 * np.pi)
+        if self.event_metadata is None:
+            return
+        t_event = self.event_metadata.get("time_event")
+        if t_event is not None and t_event != self.t_ref:
+            ra = samples["ra"]
+            time_reference = Time(self.t_ref, format="gps", scale="utc")
+            time_event = Time(t_event, format="gps", scale="utc")
+            longitude_event = time_event.sidereal_time("apparent", "greenwich")
+            longitude_reference = time_reference.sidereal_time(
+                "apparent", "greenwich"
+            )
+            delta_longitude = longitude_event - longitude_reference
+            ra_correction = delta_longitude.rad
+            samples["ra"] = (
+                (ra - ra_correction) % (2 * np.pi)
+                if inverse
+                else (ra + ra_correction) % (2 * np.pi)
+            )
 
     def _post_process(self, samples: Union[dict, pd.DataFrame], inverse: bool = False):
         """

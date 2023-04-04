@@ -16,10 +16,7 @@ def main():
 
     if args.merge:
         print(f"Merging {len(args.result)} parts into complete Result.")
-        sub_results = []
-        for file_name in args.result:
-            sub_results.append(Result(file_name=file_name))
-
+        sub_results = [Result(file_name=file_name) for file_name in args.result]
         result = Result.merge(sub_results)
         result.print_summary()
 

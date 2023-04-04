@@ -202,13 +202,13 @@ class Sampler(object):
 
         print(f"Running sampler to generate {num_samples} samples.")
         t0 = time.time()
-        if not self.unconditional_model:
-            if self.context is None:
-                raise ValueError("Context must be set in order to run sampler.")
-            context = self.context
-        else:
+        if self.unconditional_model:
             context = None
 
+        elif self.context is None:
+            raise ValueError("Context must be set in order to run sampler.")
+        else:
+            context = self.context
         # Carry out batched sampling by calling _run_sample() on each batch and
         # consolidating the results.
         if batch_size is None:
@@ -522,14 +522,14 @@ class GNPESampler(Sampler):
                 time.time() - time_sample_end,
             )
 
+        # In this case it makes sense to save the log_prob and the proxy parameters.
+
+        samples = x["parameters"]
         #
         # Prepare final result.
         #
 
         if start_with_proxies and self.num_iterations == 1:
-            # In this case it makes sense to save the log_prob and the proxy parameters.
-
-            samples = x["parameters"]
             samples["log_prob"] = x["log_prob"] + proxy_log_prob
 
             # The log_prob returned by gnpe is not just the log_prob over parameters
@@ -548,13 +548,6 @@ class GNPESampler(Sampler):
             all_params = {k: torch_detach_to_cpu(v) for k, v in all_params.items()}
             kernel_log_prob = self._kernel_log_prob(all_params)
             samples["delta_log_prob_target"] = torch.Tensor(kernel_log_prob)
-
-        else:
-            # Otherwise we only save the inference parameters, and no log_prob.
-            # Alternatively we could save the entire chain and the log_prob, but this
-            # is not useful for our purposes.
-
-            samples = x["parameters"]
 
         # Include the proxies along with the inference parameters. The variable proxies
         # gets set at the end of each Gibbs loop.

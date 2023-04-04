@@ -62,6 +62,4 @@ class SamplingNode(AnalysisNode):
     @property
     def samples_file(self):
         # TODO: Maybe remove -- not needed.
-        return os.path.join(
-            self.inputs.result_directory, self.label + ".hdf5"
-        )
+        return os.path.join(self.inputs.result_directory, f"{self.label}.hdf5")

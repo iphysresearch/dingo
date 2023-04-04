@@ -69,10 +69,10 @@ def test_detector_projection_against_research_code(
 
 def test_time_delay_from_geocenter():
     ifo_list = InterferometerList(["H1", "L1", "V1"])
+    ref_time = 1126259462.4
     for ifo in ifo_list:
         ra = np.random.uniform(0, 2 * np.pi, size=2)
         dec = np.random.uniform(-np.pi / 2, np.pi / 2, size=2)
-        ref_time = 1126259462.4
         td = time_delay_from_geocenter(ifo, ra, dec, ref_time)
         # The vectorized version of time_delay_from_geocenter uses our own
         # implementation, whereas for floats it uses bilby. Below, we iterate through

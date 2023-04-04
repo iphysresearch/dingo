@@ -36,7 +36,7 @@ def ls():
 
         dataset_type = determine_dataset_type(args.file_name)
 
-        if dataset_type == "gw_result" or dataset_type == "core_result":
+        if dataset_type in ["gw_result", "core_result"]:
             result = Result(file_name=args.file_name)
             print(f"Version: {result.version}")
             print("\nDingo Result\n" + "============\n")
@@ -168,7 +168,4 @@ def ls():
 
 def determine_dataset_type(file_name):
     with h5py.File(file_name, "r") as f:
-        if "dataset_type" in f.attrs:
-            return f.attrs["dataset_type"]
-        else:
-            return None
+        return f.attrs["dataset_type"] if "dataset_type" in f.attrs else None

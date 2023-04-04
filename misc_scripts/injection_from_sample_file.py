@@ -39,7 +39,7 @@ def max_likelihood_injection(samples_file, injection_file):
         ), f"noise std: {np.std(wf_white_0.real)} vs. {np.std(wf_white_1.real)}"
         assert np.all(sd.context["asds"][ifo] == injection_data["asds"][ifo])
     assert theta_injection == {
-        k: injection_data["parameters"][k] for k in theta_injection.keys()
+        k: injection_data["parameters"][k] for k in theta_injection
     }
 
     injection_dataset = DingoDataset(

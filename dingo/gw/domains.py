@@ -77,10 +77,7 @@ class Domain(ABC):
         pass
 
     def __eq__(self, other):
-        if self.domain_dict == other.domain_dict:
-            return True
-        else:
-            return False
+        return self.domain_dict == other.domain_dict
 
 
 class FrequencyDomain(Domain):
@@ -232,7 +229,7 @@ class FrequencyDomain(Domain):
             phase_shift = 2 * np.pi * torch.einsum("...,i", dt, f)
         else:
             raise NotImplementedError(
-                f"Time translation not implemented for data of " "type {data}."
+                'Time translation not implemented for data of type {data}.'
             )
         return self.add_phase(data, phase_shift)
 

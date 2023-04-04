@@ -37,9 +37,7 @@ def plot_corner_multi(
         "plot_contours": True,
         "levels": [0.5, 0.9],
         "bins": 30,
-    }
-    corner_params.update(kwargs)
-
+    } | kwargs
     serif_old = mpl.rcParams["font.family"]
     mpl.rcParams["font.family"] = "serif"
     linewidth_old = mpl.rcParams["lines.linewidth"]

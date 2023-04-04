@@ -20,7 +20,7 @@ class ImportanceSamplingInput(Input):
         super().__init__(args, unknown_args)
 
         # Generic initialisation
-        self.meta_data = dict()
+        self.meta_data = {}
         self.result = None
 
         # Admin arguments
@@ -121,21 +121,21 @@ class ImportanceSamplingInput(Input):
                 "PhaseRecoveryDefault"
             ]
         else:
-            self._importance_sampling_settings = dict()
+            self._importance_sampling_settings = {}
 
-        if settings is not None:
-            if settings.lower() == "default":
-                pass
-            elif settings.lower() == "phaserecoverydefault":
-                self._importance_sampling_settings.update(
-                    IMPORTANCE_SAMPLING_SETTINGS["PhaseRecoveryDefault"]
-                )
-            else:
-                self._importance_sampling_settings.update(
-                    convert_string_to_dict(settings)
-                )
+        if settings is None:
+            self._importance_sampling_settings = {}
+
+        elif settings.lower() == "default":
+            pass
+        elif settings.lower() == "phaserecoverydefault":
+            self._importance_sampling_settings.update(
+                IMPORTANCE_SAMPLING_SETTINGS["PhaseRecoveryDefault"]
+            )
         else:
-            self._importance_sampling_settings = dict()
+            self._importance_sampling_settings.update(
+                convert_string_to_dict(settings)
+            )
 
     def run_sampler(self):
         if "synthetic_phase" in self.importance_sampling_settings:
@@ -168,9 +168,7 @@ class ImportanceSamplingInput(Input):
             self.result.update_prior(self.prior_dict)
 
         self.result.print_summary()
-        self.result.to_file(
-            os.path.join(self.result_directory, self.label + ".hdf5")
-        )
+        self.result.to_file(os.path.join(self.result_directory, f"{self.label}.hdf5"))
 
     @property
     def priors(self):

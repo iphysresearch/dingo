@@ -137,9 +137,7 @@ def parse_args():
         help="If set, run os.system(args.exit_command) before exiting.",
     )
 
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 def get_event_data(event, args, model, ref=None):
@@ -257,11 +255,7 @@ def prepare_log_prob(
 def analyze_event():
     args = parse_args()
 
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
-
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     model = PosteriorModel(args.model, device=device, load_training_info=False)
     epoch = model.epoch
     wf_model = model.metadata["dataset_settings"]["waveform_generator"]["approximant"]
@@ -307,10 +301,7 @@ def analyze_event():
             # If requested, need to train an initialization model for the GNPE proxies.
             with open(args.density_settings) as f:
                 density_settings = yaml.safe_load(f)
-            if args.save_low_latency:
-                low_latency_label = label + "_low-latency"
-            else:
-                low_latency_label = None
+            low_latency_label = f"{label}_low-latency" if args.save_low_latency else None
             prepare_log_prob(
                 sampler,
                 batch_size=args.batch_size,

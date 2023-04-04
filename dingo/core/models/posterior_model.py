@@ -374,10 +374,7 @@ class PosteriorModel:
                 samples = torch.cat(samples, dim=0)
                 if get_log_prob:
                     log_prob = torch.cat(log_prob, dim=0)
-        if not get_log_prob:
-            return samples
-        else:
-            return samples, log_prob
+        return (samples, log_prob) if get_log_prob else samples
 
 
 def get_model_callable(model_type: str):

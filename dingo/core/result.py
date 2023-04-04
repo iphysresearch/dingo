@@ -87,10 +87,7 @@ class Result(DingoDataset):
 
     @property
     def injection_parameters(self):
-        if self.context:
-            return self.context.get("parameters")
-        else:
-            return None
+        return self.context.get("parameters") if self.context else None
 
     @property
     def constraint_parameter_keys(self):
@@ -166,18 +163,14 @@ class Result(DingoDataset):
 
     @property
     def num_samples(self):
-        if self.samples is not None:
-            return len(self.samples)
-        else:
-            return 0
+        return len(self.samples) if self.samples is not None else 0
 
     @property
     def effective_sample_size(self):
-        if "weights" in self.samples:
-            weights = self.samples["weights"]
-            return np.sum(weights) ** 2 / np.sum(weights**2)
-        else:
+        if "weights" not in self.samples:
             return None
+        weights = self.samples["weights"]
+        return np.sum(weights) ** 2 / np.sum(weights**2)
 
     @property
     def n_eff(self):
@@ -324,34 +317,35 @@ class Result(DingoDataset):
             coordinates). We have undone any standardizations so this is the case.
         """
         if (
-            "log_prob" in self.samples
-            and "log_likelihood" in self.samples
-            and "log_prior" in self.samples
+            "log_prob" not in self.samples
+            or "log_likelihood" not in self.samples
+            or "log_prior" not in self.samples
         ):
-            log_prob_proposal = self.samples["log_prob"]
-            log_prior = self.samples["log_prior"]
-            log_likelihood = self.samples["log_likelihood"]
-            if "delta_log_prob_target" in self.samples:
-                delta_log_prob_target = self.samples["delta_log_prob_target"]
-            else:
-                delta_log_prob_target = 0.0
+            return
+        log_prob_proposal = self.samples["log_prob"]
+        log_prior = self.samples["log_prior"]
+        log_likelihood = self.samples["log_likelihood"]
+        delta_log_prob_target = (
+            self.samples["delta_log_prob_target"]
+            if "delta_log_prob_target" in self.samples
+            else 0.0
+        )
+        # *Un-normalized* log weights are needed to calculate evidence.
+        log_weights = (
+            log_prior
+            + np.nan_to_num(log_likelihood)  # NaN = no log_likelihood evaluation
+            + delta_log_prob_target
+            - np.nan_to_num(
+                log_prob_proposal
+            )  # NaN = outside prior so no synthetic
+            # phase
+        )
+        self.log_evidence = logsumexp(log_weights) - np.log(self.num_samples)
 
-            # *Un-normalized* log weights are needed to calculate evidence.
-            log_weights = (
-                log_prior
-                + np.nan_to_num(log_likelihood)  # NaN = no log_likelihood evaluation
-                + delta_log_prob_target
-                - np.nan_to_num(
-                    log_prob_proposal
-                )  # NaN = outside prior so no synthetic
-                # phase
-            )
-            self.log_evidence = logsumexp(log_weights) - np.log(self.num_samples)
-
-            # Save the *normalized* weights.
-            weights = np.exp(log_weights - np.max(log_weights))
-            weights /= np.mean(weights)
-            self.samples["weights"] = weights
+        # Save the *normalized* weights.
+        weights = np.exp(log_weights - np.max(log_weights))
+        weights /= np.mean(weights)
+        self.samples["weights"] = weights
 
     def sampling_importance_resampling(self, num_samples=None, random_state=None):
         """
@@ -689,12 +683,7 @@ def check_equal_dict_of_arrays(a, b):
         if a_keys != b_keys:
             return False
 
-        for k in a_keys:
-            if not check_equal_dict_of_arrays(a[k], b[k]):
-                return False
-
-        return True
-
+        return all(check_equal_dict_of_arrays(a[k], b[k]) for k in a_keys)
     elif isinstance(a, np.ndarray):
         return np.array_equal(a, b)
 

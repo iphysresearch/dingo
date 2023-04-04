@@ -47,7 +47,7 @@ def append_stage():
         print(f"Replacing planned stage {args.replace} with new stage.")
         new_stage_number = args.replace
     else:
-        print(f"Appending new stage to training plan.")
+        print("Appending new stage to training plan.")
         new_stage_number = num_stages
 
     d["metadata"]["train_settings"]["training"][f"stage_{new_stage_number}"] = new_stage

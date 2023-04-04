@@ -46,7 +46,7 @@ def test_change_of_spin_conversion_phase(param_setup):
     }
     for k in ["theta_jn", "phi_jl"]:
         assert diff[k] > 1e-3
-    for k in [kk for kk in diff.keys() if kk not in ["theta_jn", "phi_jl"]]:
+    for k in [kk for kk in diff if kk not in ["theta_jn", "phi_jl"]]:
         assert diff[k] < 1e-10
 
     # 2) check that changing phases back and forth is consistent

@@ -48,9 +48,7 @@ def merge_datasets(dataset_list: List[WaveformDataset]) -> WaveformDataset:
     # Update the settings based on the total number of samples.
     merged_dict["settings"]["num_samples"] = len(merged_dict["parameters"])
 
-    merged = WaveformDataset(dictionary=merged_dict)
-
-    return merged
+    return WaveformDataset(dictionary=merged_dict)
 
 
 def merge_datasets_cli():
@@ -143,11 +141,7 @@ def build_svd_cli():
     args = parser.parse_args()
 
     dataset = WaveformDataset(file_name=args.dataset_file)
-    if args.num_train is None:
-        n_train = len(WaveformDataset)
-    else:
-        n_train = args.num_train
-
+    n_train = len(WaveformDataset) if args.num_train is None else args.num_train
     basis, n_train, n_test = train_svd_basis(dataset, args.size, n_train)
     # FIXME: This is not an ideal treatment. We should update the waveform generation
     #  to always provide the requested number of waveforms.

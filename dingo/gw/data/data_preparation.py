@@ -34,19 +34,18 @@ def load_raw_data(time_event, settings, event_dataset=None):
     event = str(time_event)
 
     # first try to load the event data from the saved dataset
-    if event_dataset is not None:
-
-        if isfile(event_dataset):
-            dataset = DingoDataset(file_name=event_dataset, data_keys=[event])
-            if settings is not None:
-                if not recursive_check_dicts_are_equal(settings, dataset.settings):
-                    raise ValueError(
-                        f"Settings {settings} don't match saved settings "
-                        f"{dataset.settings}"
-                    )
-            data = vars(dataset)[event]
-            print(f"Data for event at {event} found in {event_dataset}.")
-            return data
+    if event_dataset is not None and isfile(event_dataset):
+        dataset = DingoDataset(file_name=event_dataset, data_keys=[event])
+        if settings is not None and not recursive_check_dicts_are_equal(
+            settings, dataset.settings
+        ):
+            raise ValueError(
+                f"Settings {settings} don't match saved settings "
+                f"{dataset.settings}"
+            )
+        data = vars(dataset)[event]
+        print(f"Data for event at {event} found in {event_dataset}.")
+        return data
 
     # if this did not work, download the data
     print(f"Downloading data for event at {event}.")
@@ -66,20 +65,18 @@ def load_raw_data(time_event, settings, event_dataset=None):
 def parse_settings_for_raw_data(model_metadata, time_psd, time_buffer):
     domain_type = model_metadata["dataset_settings"]["domain"]["type"]
 
-    if domain_type == "FrequencyDomain":
-        data_settings = model_metadata["train_settings"]["data"]
-        settings = {
-            "window": data_settings["window"],
-            "detectors": data_settings["detectors"],
-            "time_segment": data_settings["window"]["T"],
-            "time_psd": time_psd,
-            "time_buffer": time_buffer,
-            "f_s": data_settings["window"]["f_s"],
-        }
-    else:
+    if domain_type != "FrequencyDomain":
         raise NotImplementedError(f"Unknown domain type {domain_type}")
 
-    return settings
+    data_settings = model_metadata["train_settings"]["data"]
+    return {
+        "window": data_settings["window"],
+        "detectors": data_settings["detectors"],
+        "time_segment": data_settings["window"]["T"],
+        "time_psd": time_psd,
+        "time_buffer": time_buffer,
+        "f_s": data_settings["window"]["f_s"],
+    }
 
 
 def data_to_domain(raw_data, settings_raw_data, domain, **kwargs):
@@ -98,30 +95,28 @@ def data_to_domain(raw_data, settings_raw_data, domain, **kwargs):
 
     """
 
-    if type(domain) == FrequencyDomain:
-        window = get_window(kwargs["window"])
-        data = {"waveform": {}, "asds": {}}
-        # convert event strains to frequency domain
-        for det, event_strain in raw_data["strain"].items():
-            event_strain = TimeSeries(event_strain, dt=1 / settings_raw_data["f_s"])
-            event_strain = event_strain.to_pycbc()
-            event_strain = (event_strain * window).to_frequencyseries()
-            event_strain = event_strain.cyclic_time_shift(
-                settings_raw_data["time_buffer"]
-            )
-            event_strain = domain.update_data(np.array(event_strain))
-            data["waveform"][det] = event_strain
-
-        # convert psds to asds
-        for det, psd in raw_data["psd"].items():
-            asd = psd**0.5
-            asd = domain.update_data(asd, low_value=1.0)
-            data["asds"][det] = asd
-
-        return data
-
-    else:
+    if type(domain) != FrequencyDomain:
         raise NotImplementedError(f"Unknown domain type {type(domain)}")
+    window = get_window(kwargs["window"])
+    data = {"waveform": {}, "asds": {}}
+    # convert event strains to frequency domain
+    for det, event_strain in raw_data["strain"].items():
+        event_strain = TimeSeries(event_strain, dt=1 / settings_raw_data["f_s"])
+        event_strain = event_strain.to_pycbc()
+        event_strain = (event_strain * window).to_frequencyseries()
+        event_strain = event_strain.cyclic_time_shift(
+            settings_raw_data["time_buffer"]
+        )
+        event_strain = domain.update_data(np.array(event_strain))
+        data["waveform"][det] = event_strain
+
+    # convert psds to asds
+    for det, psd in raw_data["psd"].items():
+        asd = psd**0.5
+        asd = domain.update_data(asd, low_value=1.0)
+        data["asds"][det] = asd
+
+    return data
 
 
 def get_event_data_and_domain(

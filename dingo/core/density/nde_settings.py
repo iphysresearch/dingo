@@ -6,7 +6,7 @@ def get_default_nde_settings_3d(
     num_workers=0,
     inference_parameters=None,
 ):
-    settings = {
+    return {
         "data": {
             "inference_parameters": inference_parameters,
         },
@@ -35,7 +35,6 @@ def get_default_nde_settings_3d(
             "scheduler": {"type": "cosine", "T_max": 10},
         },
     }
-    return settings
 
 
 DEFAULT_NDE_SETTINGS_2D = {

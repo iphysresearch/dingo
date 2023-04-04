@@ -111,13 +111,10 @@ class WhitenFixedASD(object):
         -------
         dict of the same form as sample, but with whitened / un-whitened data.
         """
-        result = {}
-        for k, v in sample.items():
-            if self.inverse:
-                result[k] = v * self.asd_array
-            else:
-                result[k] = v / self.asd_array
-        return result
+        return {
+            k: v * self.asd_array if self.inverse else v / self.asd_array
+            for k, v in sample.items()
+        }
 
 
 class WhitenAndScaleStrain(object):

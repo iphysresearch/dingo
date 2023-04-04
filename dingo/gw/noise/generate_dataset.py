@@ -94,7 +94,7 @@ def generate_dataset():
             pass
 
         dagman.build()
-        print(f"DAG submission file written.")
+        print("DAG submission file written.")
 
     else:
         print("Downloading strain data and estimating PSDs...")

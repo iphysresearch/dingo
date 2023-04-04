@@ -25,17 +25,20 @@ def main():
 
     data_settings = d["metadata"]["train_settings"]["data"]
 
-    if "gnpe_time_shifts" in data_settings:
-        if data_settings["gnpe_time_shifts"]["exact_equiv"]:
-
+    if (
+        "gnpe_time_shifts" in data_settings
+        and data_settings["gnpe_time_shifts"]["exact_equiv"]
+    ):
             # Rename context variables "L1_time_proxy" to "L1_time_proxy_relative", etc.
-            for i, p in enumerate(data_settings["context_parameters"]):
-                if p.endswith('_time_proxy'):
-                    data_settings["context_parameters"][i] = p + '_relative'
-                    data_settings["standardization"]["mean"][p + '_relative'] = \
-                        data_settings["standardization"]["mean"].pop(p)
-                    data_settings["standardization"]["std"][p + '_relative'] = \
-                        data_settings["standardization"]["std"].pop(p)
+        for i, p in enumerate(data_settings["context_parameters"]):
+            if p.endswith('_time_proxy'):
+                data_settings["context_parameters"][i] = f'{p}_relative'
+                data_settings["standardization"]["mean"][
+                    f'{p}_relative'
+                ] = data_settings["standardization"]["mean"].pop(p)
+                data_settings["standardization"]["std"][
+                    f'{p}_relative'
+                ] = data_settings["standardization"]["std"].pop(p)
 
     print("New data_settings:")
     print(yaml.dump(data_settings, default_flow_style=False, sort_keys=False))

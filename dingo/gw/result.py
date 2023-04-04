@@ -291,17 +291,15 @@ class Result(CoreResult):
             time_marginalization_kwargs["t_lower"] = self.geocent_time_prior.minimum
             time_marginalization_kwargs["t_upper"] = self.geocent_time_prior.maximum
 
-        if phase_marginalization_kwargs is not None:
-            # check that phase prior is uniform [0, 2pi)
-            if not (
-                isinstance(self.phase_prior, Uniform)
-                and (self.phase_prior._minimum, self.phase_prior._maximum)
-                == (0, 2 * np.pi)
-            ):
-                raise ValueError(
-                    f"Phase prior should be uniform [0, 2pi) for phase "
-                    f"marginalization, but is {self.phase_prior}."
-                )
+        if phase_marginalization_kwargs is not None and not (
+            isinstance(self.phase_prior, Uniform)
+            and (self.phase_prior._minimum, self.phase_prior._maximum)
+            == (0, 2 * np.pi)
+        ):
+            raise ValueError(
+                f"Phase prior should be uniform [0, 2pi) for phase "
+                f"marginalization, but is {self.phase_prior}."
+            )
 
         # This will save these settings when the Result instance is saved.
         self.time_marginalization_kwargs = time_marginalization_kwargs

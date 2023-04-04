@@ -246,5 +246,3 @@ def test_backward_pass_of_2stage_enet_with_context(data_setup_rb):
         'Indentity mapping for additional context is broken.'
 
 
-if __name__ == '__main__':
-    pass

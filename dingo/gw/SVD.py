@@ -100,11 +100,7 @@ class SVDBasis(DingoDataset):
                 f"Incompatible data: len(data) == {len(data)} and len("
                 f"parameters) == {len(parameters)} do not match."
             )
-        if parameters is not None:
-            self.mismatches = parameters.copy()
-        else:
-            self.mismatches = pd.DataFrame()
-
+        self.mismatches = pd.DataFrame() if parameters is None else parameters.copy()
         for n in np.append(np.arange(increment, self.n, increment), self.n):
             mismatches = np.empty(len(data))
             for i, d in enumerate(data):
@@ -123,20 +119,21 @@ class SVDBasis(DingoDataset):
         """
         Print a summary of the validation mismatches.
         """
-        if self.mismatches is not None:
-            for col in self.mismatches:
-                if "mismatch" in col:
-                    n = int(col.split(sep="=")[-1])
-                    mismatches = self.mismatches[col]
-                    print(f"n = {n}")
-                    print("  Mean mismatch = {}".format(np.mean(mismatches)))
-                    print("  Standard deviation = {}".format(np.std(mismatches)))
-                    print("  Max mismatch = {}".format(np.max(mismatches)))
-                    print("  Median mismatch = {}".format(np.median(mismatches)))
-                    print("  Percentiles:")
-                    print("    99    -> {}".format(np.percentile(mismatches, 99)))
-                    print("    99.9  -> {}".format(np.percentile(mismatches, 99.9)))
-                    print("    99.99 -> {}".format(np.percentile(mismatches, 99.99)))
+        if self.mismatches is None:
+            return
+        for col in self.mismatches:
+            if "mismatch" in col:
+                n = int(col.split(sep="=")[-1])
+                mismatches = self.mismatches[col]
+                print(f"n = {n}")
+                print(f"  Mean mismatch = {np.mean(mismatches)}")
+                print(f"  Standard deviation = {np.std(mismatches)}")
+                print(f"  Max mismatch = {np.max(mismatches)}")
+                print(f"  Median mismatch = {np.median(mismatches)}")
+                print("  Percentiles:")
+                print(f"    99    -> {np.percentile(mismatches, 99)}")
+                print(f"    99.9  -> {np.percentile(mismatches, 99.9)}")
+                print(f"    99.99 -> {np.percentile(mismatches, 99.99)}")
 
     def decompress(self, coefficients: np.ndarray):
         """
@@ -241,8 +238,5 @@ class ApplySVD(object):
         -------
         dict of the same form as the input, but with transformed waveforms.
         """
-        if not self.inverse:
-            func = self.svd_basis.compress
-        else:
-            func = self.svd_basis.decompress
+        func = self.svd_basis.decompress if self.inverse else self.svd_basis.compress
         return {k: func(v) for k, v in waveform.items()}

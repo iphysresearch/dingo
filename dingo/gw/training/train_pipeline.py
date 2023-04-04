@@ -48,46 +48,41 @@ def prepare_training_new(train_settings: dict, train_dir: str, local_settings: d
     """
 
     wfd = build_dataset(train_settings["data"])  # No transforms yet
-    initial_weights = {}
+    if train_settings["model"]["type"] != "nsf+embedding":
+        raise ValueError('Model type must be "nsf+embedding".')
 
-    # This is the only case that exists so far, but we leave it open to develop new
-    # model types.
-    if train_settings["model"]["type"] == "nsf+embedding":
-
-        # First, build the SVD for seeding the embedding network.
-        print("\nBuilding SVD for initialization of embedding network.")
-        initial_weights["V_rb_list"] = build_svd_for_embedding_network(
+    # First, build the SVD for seeding the embedding network.
+    print("\nBuilding SVD for initialization of embedding network.")
+    initial_weights = {
+        "V_rb_list": build_svd_for_embedding_network(
             wfd,
             train_settings["data"],
             train_settings["training"]["stage_0"]["asd_dataset_path"],
             num_workers=local_settings["num_workers"],
             batch_size=train_settings["training"]["stage_0"]["batch_size"],
             out_dir=train_dir,
-            **train_settings["model"]["embedding_net_kwargs"]["svd"],
+            **train_settings["model"]["embedding_net_kwargs"]["svd"]
         )
+    }
+    # Now set the transforms for training. We need to do this here so that we can (a)
+    # get the data dimensions to configure the network, and (b) save the
+    # parameter standardization dict in the PosteriorModel. In principle, (a) could
+    # be done without generating data (by careful calculation) and (b) could also
+    # be done outside the transform setup. But for now, this is convenient. The
+    # transforms will be reset later by initialize_stage().
 
-        # Now set the transforms for training. We need to do this here so that we can (a)
-        # get the data dimensions to configure the network, and (b) save the
-        # parameter standardization dict in the PosteriorModel. In principle, (a) could
-        # be done without generating data (by careful calculation) and (b) could also
-        # be done outside the transform setup. But for now, this is convenient. The
-        # transforms will be reset later by initialize_stage().
+    set_train_transforms(
+        wfd,
+        train_settings["data"],
+        train_settings["training"]["stage_0"]["asd_dataset_path"],
+    )
 
-        set_train_transforms(
-            wfd,
-            train_settings["data"],
-            train_settings["training"]["stage_0"]["asd_dataset_path"],
-        )
-
-        # This modifies the model settings in-place.
-        autocomplete_model_kwargs_nsf(train_settings["model"], wfd[0])
-        full_settings = {
-            "dataset_settings": wfd.settings,
-            "train_settings": train_settings,
-        }
-
-    else:
-        raise ValueError('Model type must be "nsf+embedding".')
+    # This modifies the model settings in-place.
+    autocomplete_model_kwargs_nsf(train_settings["model"], wfd[0])
+    full_settings = {
+        "dataset_settings": wfd.settings,
+        "train_settings": train_settings,
+    }
 
     print("\nInitializing new posterior model.")
     print("Complete settings:")
@@ -289,10 +284,7 @@ def train_stages(pm, wfd, train_dir, local_settings):
             print("Local runtime limits reached. Ending program.")
             break
 
-    if pm.epoch == end_epochs[-1]:
-        return True
-    else:
-        return False
+    return pm.epoch == end_epochs[-1]
 
 
 def parse_args():

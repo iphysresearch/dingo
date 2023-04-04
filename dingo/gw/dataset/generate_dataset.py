@@ -40,7 +40,7 @@ def generate_parameters_and_polarizations(
     pandas DataFrame of parameters
     dictionary of numpy arrays corresponding to waveform polarizations
     """
-    print("Generating dataset of size " + str(num_samples))
+    print(f"Generating dataset of size {num_samples}")
     parameters = pd.DataFrame(prior.sample(num_samples))
 
     if num_processes > 1:
@@ -98,13 +98,7 @@ def train_svd_basis(dataset: WaveformDataset, size: int, n_train: int):
     train_data = np.vstack([val[:n_train] for val in dataset.polarizations.values()])
     test_data = np.vstack([val[n_train:] for val in dataset.polarizations.values()])
     test_parameters = pd.concat(
-        [
-            # I would like to save the polarization, but saving the dataframe with
-            # string columns causes problems. Fix this later.
-            # dataset.parameters.iloc[n_train:].assign(polarization=pol)
-            dataset.parameters.iloc[n_train:]
-            for pol in dataset.polarizations
-        ]
+        [dataset.parameters.iloc[n_train:] for _ in dataset.polarizations]
     )
     test_parameters.reset_index(drop=True, inplace=True)
 
@@ -228,8 +222,7 @@ def generate_dataset(settings: Dict, num_processes: int) -> WaveformDataset:
     # Update to take into account potentially failed configurations
     dataset_dict[settings["num_samples"]] = len(parameters)
 
-    dataset = WaveformDataset(dictionary=dataset_dict)
-    return dataset
+    return WaveformDataset(dictionary=dataset_dict)
 
 
 def parse_args():

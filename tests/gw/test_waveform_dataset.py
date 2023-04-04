@@ -76,7 +76,7 @@ def generate_waveform_dataset_small(venv_dir='venv'):
                'out_file': os.path.join(path, 'waveform_dataset.hdf5'),
                'num_processes': '4'}
     args_string = create_args_string(args_in)
-    res = os.system('dingo_generate_dataset ' + args_string)
+    res = os.system(f'dingo_generate_dataset {args_string}')
     if not os.WIFEXITED(res):
         raise RuntimeError(f'dingo_generate_waveforms returned a '
                            f'nonzero exit code: {res}')
@@ -156,6 +156,6 @@ def test_load_waveform_dataset(generate_waveform_dataset_small):
         assert not np.allclose(b / scale_factor, a / scale_factor)
 
         # below f_min_new check
-        assert np.all(wd2[0]['waveform'][pol][:int(f_min_new)] == 0.0)
+        assert np.all(wd2[0]['waveform'][pol][:f_min_new] == 0.0)
     assert len(wd2.domain) == f_max_new / delta_f + 1
     assert len(wd2.domain) == len(wd2.domain())

@@ -81,9 +81,7 @@ def download_and_estimate_psds(
         }
         if channels:
             estimation_kwargs["channel"] = channels[det]
-        for index, (start, end) in enumerate(
-            tqdm(time_segments[det], disable=not verbose)
-        ):
+        for start, end in tqdm(time_segments[det], disable=not verbose):
             filename = join(psd_path, f"asd_{start}.hdf5")
             asd_filename_list[det].append(filename)
             if not os.path.exists(filename):

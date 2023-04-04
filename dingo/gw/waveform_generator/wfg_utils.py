@@ -45,9 +45,7 @@ def get_tapering_window_for_complex_time_series(h, tapering_flag: int = 1):
     h_tapered.data.data = h.data.data.copy().real
     LS.SimInspiralREAL8WaveTaper(h_tapered.data, tapering_flag)
     eps = 1e-20 * np.max(np.abs(h.data.data))
-    window = (np.abs(h_tapered.data.data) + eps) / (np.abs(h.data.data.real) + eps)
-    # FIXME: using eps for numerical stability is not really robust here
-    return window
+    return (np.abs(h_tapered.data.data) + eps) / (np.abs(h.data.data.real) + eps)
 
 
 def taper_td_modes_in_place(hlm_td, tapering_flag: int = 1):

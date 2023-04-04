@@ -19,28 +19,24 @@ def create_submission_file(train_dir, condor_settings, filename="submission_file
     :param filename:
     :return:
     """
-    lines = []
-    lines.append(f'executable = {condor_settings["executable"]}\n')
-    lines.append(f'request_cpus = {condor_settings["num_cpus"]}\n')
-    lines.append(f'request_memory = {condor_settings["memory_cpus"]}\n')
-    lines.append(f'request_gpus = {condor_settings["num_gpus"]}\n')
-    lines.append(
-        f"requirements = TARGET.CUDAGlobalMemoryMb > "
-        f'{condor_settings["memory_gpus"]}\n\n'
-    )
-    lines.append(f'arguments = {condor_settings["arguments"]}\n')
-    lines.append(f'error = {join(train_dir, "info.err")}\n')
+    lines = [
+        f'executable = {condor_settings["executable"]}\n',
+        f'request_cpus = {condor_settings["num_cpus"]}\n',
+        f'request_memory = {condor_settings["memory_cpus"]}\n',
+        f'request_gpus = {condor_settings["num_gpus"]}\n',
+        f'requirements = TARGET.CUDAGlobalMemoryMb > {condor_settings["memory_gpus"]}\n\n',
+        f'arguments = {condor_settings["arguments"]}\n',
+        f'error = {join(train_dir, "info.err")}\n',
+    ]
     lines.append(f'output = {join(train_dir, "info.out")}\n')
-    lines.append(f'log = {join(train_dir, "info.log")}\n')
-    lines.append("queue")
-
+    lines.extend((f'log = {join(train_dir, "info.log")}\n', "queue"))
     with open(join(train_dir, filename), "w") as f:
         for line in lines:
             f.write(line)
 
 
 def copyfile(src, dst):
-    os.system("cp -p %s %s" % (src, dst))
+    os.system(f"cp -p {src} {dst}")
 
 
 def copy_logfiles(log_dir, epoch, name="info", suffixes=(".err", ".log", ".out")):
@@ -50,7 +46,7 @@ def copy_logfiles(log_dir, epoch, name="info", suffixes=(".err", ".log", ".out")
         try:
             copyfile(src, dest)
         except:
-            print("Could not copy " + src)
+            print(f"Could not copy {src}")
 
 
 def train_condor():
@@ -86,9 +82,11 @@ def train_condor():
 
             local_settings = train_settings.pop("local")
             with open(os.path.join(args.train_dir, "local_settings.yaml"), "w") as f:
-                if local_settings.get("use_wandb", False):
-                    if "WANDB_API_KEY" not in os.environ.keys():
-                        os.environ["WANDB_API_KEY"] = local_settings["wandb_api_key"]
+                if (
+                    local_settings.get("use_wandb", False)
+                    and "WANDB_API_KEY" not in os.environ.keys()
+                ):
+                    os.environ["WANDB_API_KEY"] = local_settings["wandb_api_key"]
                 if (
                     local_settings.get("use_wandb", False)
                     and "wandb_run_id" not in local_settings.keys()

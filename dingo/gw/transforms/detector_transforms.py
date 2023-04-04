@@ -50,7 +50,7 @@ def time_delay_from_geocenter(
         )
     if isinstance(ra, (np.ndarray, torch.Tensor)):
         if len(ra.shape) != 1:
-            raise ValueError(f"Only one axis expected for ra and dec, got multiple.")
+            raise ValueError("Only one axis expected for ra and dec, got multiple.")
         if ra.shape != dec.shape:
             raise ValueError(
                 f"Shapes of ra ({ra.shape}) and dec ({dec.shape}) don't match."
@@ -74,7 +74,7 @@ def time_delay_from_geocenter(
                 "ra, dec must be either float, np.ndarray, or torch.Tensor."
             )
 
-        gmst = math.fmod(GreenwichMeanSiderealTime(float(time)), 2 * np.pi)
+        gmst = math.fmod(GreenwichMeanSiderealTime(time), 2 * np.pi)
         phi = ra - gmst
         theta = np.pi / 2 - dec
         sintheta = sin(theta)
@@ -301,10 +301,10 @@ class ApplyCalibrationUncertainty(object):
 
         self.data_domain = data_domain
         self.calibration_prior = {}
-        if all([s.endswith(".txt") for s in calibration_envelope.values()]):
+        if all(s.endswith(".txt") for s in calibration_envelope.values()):
             # Generating .h5 lookup table from priors in .txt file
             self.calibration_envelope = calibration_envelope
-            for i, ifo in enumerate(self.ifo_list):
+            for ifo in self.ifo_list:
                 # Setting calibration model to cubic spline
                 ifo.calibration_model = calibration.CubicSpline(
                     f"recalib_{ifo.name}_",
@@ -356,7 +356,7 @@ class ApplyCalibrationUncertainty(object):
                     self.data_domain.sample_frequencies[
                         self.data_domain.frequency_mask
                     ],
-                    prefix="recalib_{}_".format(ifo.name),
+                    prefix=f"recalib_{ifo.name}_",
                     **calibration_parameter_draws[ifo.name].iloc[i],
                 )
 

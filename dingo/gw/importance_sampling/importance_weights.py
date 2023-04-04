@@ -69,14 +69,18 @@ def main():
     #        "Only one of time_marginalization, phase_marginalization and"
     #        "synthetic_phase can be set to True."
     #    )
-    if time_marginalization and "geocent_time" in samples:
-        if "geocent_time" in inference_parameters:
-            samples.drop("geocent_time", axis=1, inplace=True)
-            inference_parameters.remove("geocent_time")
-    if phase_marginalization or synthetic_phase:
-        if "phase" in inference_parameters:
-            samples.drop("phase", axis=1, inplace=True)
-            inference_parameters.remove("phase")
+    if (
+        time_marginalization
+        and "geocent_time" in samples
+        and "geocent_time" in inference_parameters
+    ):
+        samples.drop("geocent_time", axis=1, inplace=True)
+        inference_parameters.remove("geocent_time")
+    if (
+        phase_marginalization or synthetic_phase
+    ) and "phase" in inference_parameters:
+        samples.drop("phase", axis=1, inplace=True)
+        inference_parameters.remove("phase")
     if "nde" in settings:
         settings["nde"]["data"]["inference_parameters"] = inference_parameters
         settings["nde"]["data"]["parameters"] = inference_parameters
@@ -162,10 +166,10 @@ def main():
     # print(np.std(log_evidences) / np.mean(log_evidences_std))
 
     if synthetic_phase:
-        print(f"Sampling synthetic phase.")
+        print("Sampling synthetic phase.")
         result.sample_synthetic_phase(synthetic_phase_kwargs)
 
-    print(f"Importance sampling.")
+    print("Importance sampling.")
     result.importance_sample(
         num_processes=settings.get("num_processes", 1),
         time_marginalization_kwargs=time_marginalization_kwargs,

@@ -57,7 +57,7 @@ def setup_logger(outdir=None, label=None, log_level="INFO"):
     logger.setLevel(level)
 
     streams = [isinstance(h, logging.StreamHandler) for h in logger.handlers]
-    if len(streams) == 0 or not all(streams):
+    if not streams or not all(streams):
         stream_handler = logging.StreamHandler()
         stream_handler.setFormatter(
             logging.Formatter(
@@ -67,22 +67,24 @@ def setup_logger(outdir=None, label=None, log_level="INFO"):
         stream_handler.setLevel(level)
         logger.addHandler(stream_handler)
 
-    if any([isinstance(h, logging.FileHandler) for h in logger.handlers]) is False:
-        if label:
-            if outdir:
-                check_directory_exists_and_if_not_mkdir(outdir, logger)
-            else:
-                outdir = "."
-            log_file = f"{outdir}/{label}.log"
-            file_handler = logging.FileHandler(log_file)
-            file_handler.setFormatter(
-                logging.Formatter(
-                    "%(asctime)s %(levelname)-8s: %(message)s", datefmt="%H:%M"
-                )
+    if (
+        not any(isinstance(h, logging.FileHandler) for h in logger.handlers)
+        and label
+    ):
+        if outdir:
+            check_directory_exists_and_if_not_mkdir(outdir, logger)
+        else:
+            outdir = "."
+        log_file = f"{outdir}/{label}.log"
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s %(levelname)-8s: %(message)s", datefmt="%H:%M"
             )
+        )
 
-            file_handler.setLevel(level)
-            logger.addHandler(file_handler)
+        file_handler.setLevel(level)
+        logger.addHandler(file_handler)
 
     for handler in logger.handlers:
         handler.setLevel(level)
