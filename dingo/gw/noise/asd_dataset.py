@@ -79,13 +79,10 @@ class ASDDataset(DingoDataset):
     @property
     def gps_info(self):
         """Min/Max GPS time for each detector."""
-        gps_info_dict = {}
-        for key, val in self.gps_times.items():
-            if not isinstance(val, Iterable):
-                gps_info_dict[key] = val
-            else:
-                gps_info_dict[key] = (min(val), max(val))
-        return gps_info_dict
+        return {
+            key: (min(val), max(val)) if isinstance(val, Iterable) else val
+            for key, val in self.gps_times.items()
+        }
 
     def update_domain(self, domain_update):
         """

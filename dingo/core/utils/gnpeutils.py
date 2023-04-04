@@ -36,20 +36,18 @@ class IterationTracker:
                 pvalue.append(ks_result[1])
             self.ks_result = {"statistics": statistic, "pvalue": pvalue}
 
-            if not self.store_data:
-                self.data = {k: v.copy()[None, :] for k, v in y.items()}
-            else:
-                self.data = {
-                k: np.concatenate((v, y[k][None, :]), axis=0)
-                for k, v in self.data.items()
-            }
+            self.data = (
+                {
+                    k: np.concatenate((v, y[k][None, :]), axis=0)
+                    for k, v in self.data.items()
+                }
+                if self.store_data
+                else {k: v.copy()[None, :] for k, v in y.items()}
+            )
 
     @property
     def pvalue_min(self):
-        if self.ks_result is None:
-            return -np.inf
-        else:
-            return min(self.ks_result["pvalue"])
+        return -np.inf if self.ks_result is None else min(self.ks_result["pvalue"])
 
     # def remove_outliers(self, x):
     #     xc = np.concatenate([v[None, :] for v in self.x.values()], axis=0)

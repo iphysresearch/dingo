@@ -20,7 +20,7 @@ class GNPEBase(ABC):
     def __init__(self, kernel_dict, operators):
         self.kernel = PriorDict(kernel_dict)
         self.operators = operators
-        self.proxy_list = [k + "_proxy" for k in kernel_dict.keys()]
+        self.proxy_list = [f"{k}_proxy" for k in kernel_dict.keys()]
         self.context_parameters = self.proxy_list.copy()
         self.input_parameter_names = list(self.kernel.keys())
 
@@ -56,7 +56,7 @@ class GNPEBase(ABC):
                 )
             g = input_parameters[k]
             g_hat = self.perturb(g, k)
-            proxies[k + "_proxy"] = g_hat
+            proxies[f"{k}_proxy"] = g_hat
         return proxies
 
     def perturb(self, g, k):
@@ -82,7 +82,7 @@ class GNPEBase(ABC):
         if type(g) == torch.Tensor:
             epsilon = self.kernel[k].sample(len(g))
             epsilon = torch.tensor(epsilon, dtype=g.dtype, device=g.device)
-        elif type(g) == np.float64 or type(g) == float:
+        elif type(g) in [np.float64, float]:
             epsilon = self.kernel[k].sample()
         else:
             raise NotImplementedError(f"Unsupported data type {type(g)}.")
@@ -152,7 +152,7 @@ class GNPECoalescenceTimes(GNPEBase):
         inference : bool = False
             Whether to use inference or training mode.
         """
-        self.ifo_time_labels = [ifo.name + "_time" for ifo in ifo_list]
+        self.ifo_time_labels = [f"{ifo.name}_time" for ifo in ifo_list]
         kernel_dict = {k: kernel for k in self.ifo_time_labels}
         operators = {k: "+" for k in self.ifo_time_labels}
         super().__init__(kernel_dict, operators)
@@ -164,7 +164,7 @@ class GNPECoalescenceTimes(GNPEBase):
             # "preferred" proxy (typically H1). We give these a different name so that we
             # can keep track separately of the un-shifted proxies.
             del self.context_parameters[0]
-            self.context_parameters = [p + "_relative" for p in self.context_parameters]
+            self.context_parameters = [f"{p}_relative" for p in self.context_parameters]
 
     def __call__(self, input_sample):
         sample = input_sample.copy()
@@ -186,16 +186,18 @@ class GNPECoalescenceTimes(GNPEBase):
         # Hence we subtract off the proxy times from these arrival times, so that time
         # shifting of the data only has to be done once.
 
-        if not self.inference:
-            for k in self.ifo_time_labels:
-                new_parameters[k] = (
-                    -new_parameters[k + "_proxy"] + extrinsic_parameters[k]
-                )
-        # In inference mode, the data are only time shifted by minus the proxy.
-        else:
-            for k in self.ifo_time_labels:
-                new_parameters[k] = -new_parameters[k + "_proxy"]
+        for k in self.ifo_time_labels:
+                # If we are in training mode, we assume that the time shifting due to different
+                # arrival times of the signal in individual detectors has not yet been applied
+                # to the data; instead the arrival times are stored in extrinsic_parameters.
+                # Hence we subtract off the proxy times from these arrival times, so that time
+                # shifting of the data only has to be done once.
 
+            new_parameters[k] = (
+                -new_parameters[f"{k}_proxy"]
+                if self.inference
+                else -new_parameters[f"{k}_proxy"] + extrinsic_parameters[k]
+            )
         # If we are imposing the global time shift symmetry, then we treat the first
         # proxy as "preferred", in the sense that it defines the global time shift.
         # This symmetry is enforced as follows:
@@ -211,22 +213,20 @@ class GNPECoalescenceTimes(GNPEBase):
         # stored in extrinsic_parameters, only the proxies.
 
         if self.exact_global_equivariance:
-            dt = new_parameters[self.ifo_time_labels[0] + "_proxy"]
-            if not self.inference:
-                if "geocent_time" not in extrinsic_parameters:
-                    raise KeyError(
-                        "geocent_time should be in extrinsic_parameters at "
-                        "this point during training."
-                    )
+            dt = new_parameters[f"{self.ifo_time_labels[0]}_proxy"]
+            if self.inference:
+                new_parameters["geocent_time"] = -dt
+            elif "geocent_time" not in extrinsic_parameters:
+                raise KeyError(
+                    "geocent_time should be in extrinsic_parameters at "
+                    "this point during training."
+                )
+            else:
                 new_parameters["geocent_time"] = (
                     extrinsic_parameters["geocent_time"] - dt
                 )
-            else:
-                new_parameters["geocent_time"] = -dt
             for k in self.ifo_time_labels[1:]:
-                new_parameters[k + "_proxy_relative"] = (
-                    new_parameters[k + "_proxy"] - dt
-                )
+                new_parameters[f"{k}_proxy_relative"] = new_parameters[f"{k}_proxy"] - dt
 
         extrinsic_parameters.update(new_parameters)
         sample["extrinsic_parameters"] = extrinsic_parameters

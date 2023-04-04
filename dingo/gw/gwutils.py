@@ -10,17 +10,15 @@ from dingo.gw.prior import BBHExtrinsicPriorDict
 def get_window(window_kwargs):
     """Compute window from window_kwargs."""
     type = window_kwargs["type"]
-    if type == "tukey":
-        roll_off, T, f_s = (
-            window_kwargs["roll_off"],
-            window_kwargs["T"],
-            window_kwargs["f_s"],
-        )
-        alpha = 2 * roll_off / T
-        w = tukey(int(T * f_s), alpha)
-        return w
-    else:
+    if type != "tukey":
         raise NotImplementedError(f"Unknown window type {type}.")
+    roll_off, T, f_s = (
+        window_kwargs["roll_off"],
+        window_kwargs["T"],
+        window_kwargs["f_s"],
+    )
+    alpha = 2 * roll_off / T
+    return tukey(int(T * f_s), alpha)
 
 
 def get_window_factor(window):
@@ -118,10 +116,9 @@ def get_standardization_dict(
     mean = {**mean_intrinsic, **mean_extrinsic}
     std = {**std_intrinsic, **std_extrinsic}
 
-    # For all remaining parameters that require standardization, we use the transform
-    # to sample these and estimate the mean and standard deviation numerically.
-    additional_parameters = [p for p in selected_parameters if p not in mean]
-    if additional_parameters:
+    if additional_parameters := [
+        p for p in selected_parameters if p not in mean
+    ]:
         num_samples = min(100_000, len(wfd.parameters))
         samples = {p: np.empty(num_samples) for p in additional_parameters}
         for n in range(num_samples):
@@ -135,11 +132,10 @@ def get_standardization_dict(
         mean_additional = {p: np.mean(samples[p]).item() for p in additional_parameters}
         std_additional = {p: np.std(samples[p]).item() for p in additional_parameters}
 
-        mean.update(mean_additional)
-        std.update(std_additional)
+        mean |= mean_additional
+        std |= std_additional
 
-    standardization_dict = {
+    return {
         "mean": {k: mean[k] for k in selected_parameters},
         "std": {k: std[k] for k in selected_parameters},
     }
-    return standardization_dict

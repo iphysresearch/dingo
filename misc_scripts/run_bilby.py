@@ -65,9 +65,7 @@ def parse_args():
         "args.outdir.",
     )
 
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
@@ -92,7 +90,7 @@ if __name__ == "__main__":
     # We now use gwpy to obtain analysis and psd data and create the ifo_list
     ifo_list = bilby.gw.detector.InterferometerList([])
     for det in settings["detectors"]:
-        logger.info("Downloading analysis data for ifo {}".format(det))
+        logger.info(f"Downloading analysis data for ifo {det}")
         ifo = bilby.gw.detector.get_empty_interferometer(det)
         ifo.maximum_frequency = settings["maximum_frequency"]
         ifo.minimum_frequency = settings["minimum_frequency"]
@@ -100,7 +98,7 @@ if __name__ == "__main__":
         data = TimeSeries.fetch_open_data(det, start_time, end_time, cache=True)
         ifo.strain_data.set_from_gwpy_timeseries(data)
 
-        logger.info("Downloading psd data for ifo {}".format(det))
+        logger.info(f"Downloading psd data for ifo {det}")
         psd_data = TimeSeries.fetch_open_data(
             det, psd_start_time, psd_end_time, cache=True
         )
@@ -123,7 +121,7 @@ if __name__ == "__main__":
 
         ifo_list.append(ifo)
 
-    logger.info("Saving data plots to {}".format(outdir))
+    logger.info(f"Saving data plots to {outdir}")
     ifo_list.plot_data(outdir=outdir, label=settings["event_label"])
 
     ifo_list.save_data(outdir, settings["event_label"])

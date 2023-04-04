@@ -36,7 +36,7 @@ def main():
         'train_fraction': train_settings['train_settings']['train_fraction'],
         'conditioning': train_settings['data_conditioning'],
     }
-    data.update(train_settings['transform_settings'])
+    data |= train_settings['transform_settings']
 
     model = d['model_kwargs']
     model['type'] = 'nsf+embedding'

@@ -46,27 +46,24 @@ def create_submission_file(train_dir, filename='submission_file.sub'):
     """
     with open(join(train_dir, 'train_settings.yaml'), 'r') as fp:
         d = yaml.safe_load(fp)['condor_settings']
-    lines = []
-    lines.append(f'executable = {d["python"]}\n')
-    lines.append(f'request_cpus = {d["num_cpus"]}\n')
-    lines.append(f'request_memory = {d["memory_cpus"]}\n')
-    lines.append(f'request_gpus = {d["num_gpus"]}\n')
-    lines.append(f'requirements = TARGET.CUDAGlobalMemoryMb > '
-                 f'{d["memory_gpus"]}\n\n')
-
-    lines.append(f'arguments = {d["train_script"]} --train_dir {train_dir}\n')
-    lines.append(f'error = {join(train_dir, "info.err")}\n')
+    lines = [
+        f'executable = {d["python"]}\n',
+        f'request_cpus = {d["num_cpus"]}\n',
+        f'request_memory = {d["memory_cpus"]}\n',
+        f'request_gpus = {d["num_gpus"]}\n',
+        f'requirements = TARGET.CUDAGlobalMemoryMb > {d["memory_gpus"]}\n\n',
+        f'arguments = {d["train_script"]} --train_dir {train_dir}\n',
+        f'error = {join(train_dir, "info.err")}\n',
+    ]
     lines.append(f'output = {join(train_dir, "info.out")}\n')
-    lines.append(f'log = {join(train_dir, "info.log")}\n')
-    lines.append('queue')
-
+    lines.extend((f'log = {join(train_dir, "info.log")}\n', 'queue'))
     with open(join(train_dir, filename), 'w') as f:
         for line in lines:
             f.write(line)
 
 
 def copyfile(src, dst):
-    os.system('cp -p %s %s' % (src, dst))
+    os.system(f'cp -p {src} {dst}')
 
 
 def copy_logfiles(log_dir, epoch, name='info', suffixes=('.err','.log','.out')):
@@ -76,7 +73,7 @@ def copy_logfiles(log_dir, epoch, name='info', suffixes=('.err','.log','.out')):
         try:
             copyfile(src, dest)
         except:
-            print('Could not copy ' + src)
+            print(f'Could not copy {src}')
 
 
 if __name__ == '__main__':

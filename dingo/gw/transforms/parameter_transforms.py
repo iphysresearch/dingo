@@ -129,10 +129,10 @@ class SelectStandardizeRepackageParameters(object):
                 sample["parameters"] = parameters
 
             elif self.as_type == "dict":
-                sample["parameters"] = {}
-                for idx, par in enumerate(inference_parameters):
-                    sample["parameters"][par] = parameters[..., idx]
-
+                sample["parameters"] = {
+                    par: parameters[..., idx]
+                    for idx, par in enumerate(inference_parameters)
+                }
             elif self.as_type == "pandas":
                 sample["parameters"] = pd.DataFrame(
                     np.array(parameters), columns=inference_parameters
@@ -171,7 +171,7 @@ class StandardizeParameters:
         """
         self.mu = mu
         self.std = std
-        if not set(mu.keys()) == set(std.keys()):
+        if set(mu.keys()) != set(std.keys()):
             raise ValueError(
                 "The keys in mu and std disagree:" f"mu: {mu.keys()}, std: {std.keys()}"
             )

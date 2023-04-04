@@ -19,7 +19,7 @@ class SamplingInput(Input):
         super().__init__(args, unknown_args)
 
         # Generic initialisation
-        self.meta_data = dict()
+        self.meta_data = {}
         self.result = None
 
         # Admin arguments
@@ -136,7 +136,7 @@ class SamplingInput(Input):
                 "ProxyRecoveryDefault"
             ]
         else:
-            self._density_recovery_settings = dict()
+            self._density_recovery_settings = {}
 
         if settings is not None:
             if settings.lower() in ["default", "proxyrecoverydefault"]:
@@ -176,7 +176,7 @@ class SamplingInput(Input):
             outdir = Path(self.result_directory)
             outdir.mkdir(parents=True, exist_ok=True)
             for n, r in enumerate(sub_results):
-                file_name = self.label + f"_part{n}.hdf5"
+                file_name = f"{self.label}_part{n}.hdf5"
                 r.to_file(file_name=outdir / file_name)
 
 

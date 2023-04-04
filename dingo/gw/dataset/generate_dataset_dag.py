@@ -101,34 +101,32 @@ def configure_runs(settings, num_jobs, temp_dir):
     modulus_check(num_samples, num_jobs, "num_samples", "num_jobs")
     settings_part["num_samples"] = num_samples // num_jobs
 
-    if "compression" in settings:
-        if "svd" in settings["compression"]:
-
-            # Configure a set of runs to generate waveforms from which to construct the
-            # SVD. These should be uncompressed waveforms.
-            settings_svd_part = copy.deepcopy(settings)
-            num_samples = settings["compression"]["svd"]["num_training_samples"]
-            num_samples += settings["compression"]["svd"].get(
-                "num_validation_samples", 0
+    if "compression" in settings and "svd" in settings["compression"]:
+        # Configure a set of runs to generate waveforms from which to construct the
+        # SVD. These should be uncompressed waveforms.
+        settings_svd_part = copy.deepcopy(settings)
+        num_samples = settings["compression"]["svd"]["num_training_samples"]
+        num_samples += settings["compression"]["svd"].get(
+            "num_validation_samples", 0
+        )
+        modulus_check(
+            num_samples,
+            num_jobs,
+            "(number of SVD training + validation samples)",
+            "num_jobs",
+        )
+        settings_svd_part["num_samples"] = num_samples // num_jobs
+        del settings_svd_part["compression"]["svd"]
+        with open(os.path.join(temp_dir, settings_svd_part_fn), "w") as f:
+            yaml.dump(
+                settings_svd_part, f, default_flow_style=False, sort_keys=False
             )
-            modulus_check(
-                num_samples,
-                num_jobs,
-                "(number of SVD training + validation samples)",
-                "num_jobs",
-            )
-            settings_svd_part["num_samples"] = num_samples // num_jobs
-            del settings_svd_part["compression"]["svd"]
-            with open(os.path.join(temp_dir, settings_svd_part_fn), "w") as f:
-                yaml.dump(
-                    settings_svd_part, f, default_flow_style=False, sort_keys=False
-                )
 
-            # Set the runs for the main dataset to use the saved SVD basis (assume it was
-            # produced already, based on the above).
-            settings_part["compression"]["svd"] = {
-                "file": os.path.join(temp_dir, svd_fn)
-            }
+        # Set the runs for the main dataset to use the saved SVD basis (assume it was
+        # produced already, based on the above).
+        settings_part["compression"]["svd"] = {
+            "file": os.path.join(temp_dir, svd_fn)
+        }
 
     with open(os.path.join(temp_dir, settings_part_fn), "w") as f:
         yaml.dump(settings_part, f, default_flow_style=False, sort_keys=False)
@@ -162,62 +160,60 @@ def create_dag(args, settings):
 
     # 1. Prepare SVD basis ----------------------------------------------------
     # This is only needed if we are using SVD compression
-    if "compression" in settings:
-        if "svd" in settings["compression"]:
+    if "compression" in settings and "svd" in settings["compression"]:
+        # --- (a) Generate dataset for SVD training. Split this over multiple jobs.
+        executable = os.path.join(path, "dingo_generate_dataset")
+        args_dict = {
+            "settings_file": os.path.join(temp_dir, settings_svd_part_fn),
+            "num_processes": args.request_cpus,
+            "out_file": os.path.join(
+                temp_dir, f"{svd_dataset_part_prefix}$(Process).hdf5"
+            ),
+        }
+        args_str = create_args_string(args_dict)
+        generate_svd_dataset_part = Job(
+            name="generate_svd_dataset_part",
+            executable=executable,
+            queue=args.num_jobs,
+            dag=dagman,
+            arguments=args_str,
+            **kwargs,
+        )
 
-            # --- (a) Generate dataset for SVD training. Split this over multiple jobs.
-            executable = os.path.join(path, "dingo_generate_dataset")
-            args_dict = {
-                "settings_file": os.path.join(temp_dir, settings_svd_part_fn),
-                "num_processes": args.request_cpus,
-                "out_file": os.path.join(
-                    temp_dir, svd_dataset_part_prefix + "$(Process).hdf5"
-                ),
-            }
-            args_str = create_args_string(args_dict)
-            generate_svd_dataset_part = Job(
-                name="generate_svd_dataset_part",
-                executable=executable,
-                queue=args.num_jobs,
-                dag=dagman,
-                arguments=args_str,
-                **kwargs,
-            )
+        # --- (b) Consolidate dataset.
+        executable = os.path.join(path, "dingo_merge_datasets")
+        args_dict = {
+            "prefix": os.path.join(temp_dir, svd_dataset_part_prefix),
+            "num_parts": args.num_jobs,
+            "out_file": os.path.join(temp_dir, svd_dataset_fn),
+        }
+        args_str = create_args_string(args_dict)
+        consolidate_svd_dataset = Job(
+            name="consolidate_svd_dataset",
+            executable=executable,
+            dag=dagman,
+            arguments=args_str,
+            **kwargs_high_memory,
+        )
+        consolidate_svd_dataset.add_parent(generate_svd_dataset_part)
 
-            # --- (b) Consolidate dataset.
-            executable = os.path.join(path, "dingo_merge_datasets")
-            args_dict = {
-                "prefix": os.path.join(temp_dir, svd_dataset_part_prefix),
-                "num_parts": args.num_jobs,
-                "out_file": os.path.join(temp_dir, svd_dataset_fn),
-            }
-            args_str = create_args_string(args_dict)
-            consolidate_svd_dataset = Job(
-                name="consolidate_svd_dataset",
-                executable=executable,
-                dag=dagman,
-                arguments=args_str,
-                **kwargs_high_memory,
-            )
-            consolidate_svd_dataset.add_parent(generate_svd_dataset_part)
-
-            # --- (c) Build SVD basis
-            executable = os.path.join(path, "dingo_build_svd")
-            args_dict = {
-                "dataset_file": os.path.join(temp_dir, svd_dataset_fn),
-                "size": settings["compression"]["svd"]["size"],
-                "out_file": os.path.join(temp_dir, svd_fn),
-                "num_train": settings["compression"]["svd"]["num_training_samples"],
-            }
-            args_str = create_args_string(args_dict)
-            build_svd = Job(
-                name="build_svd",
-                executable=executable,
-                dag=dagman,
-                arguments=args_str,
-                **kwargs_high_memory,
-            )
-            build_svd.add_parent(consolidate_svd_dataset)
+        # --- (c) Build SVD basis
+        executable = os.path.join(path, "dingo_build_svd")
+        args_dict = {
+            "dataset_file": os.path.join(temp_dir, svd_dataset_fn),
+            "size": settings["compression"]["svd"]["size"],
+            "out_file": os.path.join(temp_dir, svd_fn),
+            "num_train": settings["compression"]["svd"]["num_training_samples"],
+        }
+        args_str = create_args_string(args_dict)
+        build_svd = Job(
+            name="build_svd",
+            executable=executable,
+            dag=dagman,
+            arguments=args_str,
+            **kwargs_high_memory,
+        )
+        build_svd.add_parent(consolidate_svd_dataset)
 
     # 2. Prepare main dataset -------------------------------------------------
 
@@ -226,7 +222,9 @@ def create_dag(args, settings):
     args_dict = {
         "settings_file": os.path.join(temp_dir, settings_part_fn),
         "num_processes": args.request_cpus,
-        "out_file": os.path.join(temp_dir, dataset_part_prefix + "$(Process).hdf5"),
+        "out_file": os.path.join(
+            temp_dir, f"{dataset_part_prefix}$(Process).hdf5"
+        ),
     }
     args_str = create_args_string(args_dict)
     generate_dataset_part = Job(
@@ -237,9 +235,8 @@ def create_dag(args, settings):
         arguments=args_str,
         **kwargs,
     )
-    if "compression" in settings:
-        if "svd" in settings["compression"]:
-            generate_dataset_part.add_parent(build_svd)
+    if "compression" in settings and "svd" in settings["compression"]:
+        generate_dataset_part.add_parent(build_svd)
 
     # --- (b) Consolidate dataset
     executable = os.path.join(path, "dingo_merge_datasets")

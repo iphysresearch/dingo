@@ -35,13 +35,12 @@ def signal_setup_EOB():
     )
     ifo_list = ["H1", "L1"]
     t_ref = 1126259462.4
-    signal = GWSignal(wfg_kwargs, wfg_domain, data_domain, ifo_list, t_ref)
-    return signal
+    return GWSignal(wfg_kwargs, wfg_domain, data_domain, ifo_list, t_ref)
 
 
 @pytest.fixture
 def BBH_parameters():
-    parameters = {
+    return {
         "mass_1": 60.29442201204798,
         "mass_2": 25.460299253933126,
         "phase": 2.346269257440926,
@@ -58,7 +57,6 @@ def BBH_parameters():
         "dec": 2.0,
         "psi": 2.5,
     }
-    return parameters
 
 
 def test_signal_m_EOB(signal_setup_EOB, BBH_parameters):

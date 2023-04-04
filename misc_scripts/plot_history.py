@@ -13,9 +13,7 @@ def parse_args():
         help="Path to train dir, which contains history.txt "
              "and where history.pdf is saved.",
     )
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 if __name__ == "__main__":

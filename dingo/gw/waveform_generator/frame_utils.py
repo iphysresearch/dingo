@@ -24,7 +24,7 @@ def get_JL0_euler_angles(p, wfg, spin_conversion_phase=None):
     p_lal = wfg._convert_parameters_to_lal_frame(p)
     p_lal = list(p_lal)
 
-    m1, m2 = p_lal[0:2]
+    m1, m2 = p_lal[:2]
     chi1x, chi1y, chi1z, chi2x, chi2y, chi2z = p_lal[2:8]
     iota = p_lal[9]
 

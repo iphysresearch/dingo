@@ -16,9 +16,7 @@ class AvgTracker:
         self.x = x
 
     def get_avg(self):
-        if self.N == 0:
-            return float("nan")
-        return self.sum / self.N
+        return float("nan") if self.N == 0 else self.sum / self.N
 
 
 class LossInfo:
@@ -119,12 +117,14 @@ class RuntimeLimits:
             if limits_exceeded = True, this prints a message for the reason
         """
         # check time limit for run
-        if self.max_time_per_run is not None:
-            if time.time() - self.time_start >= self.max_time_per_run:
-                print(
-                    f"Stop run: Time limit of {self.max_time_per_run} s " f"exceeded."
-                )
-                return True
+        if (
+            self.max_time_per_run is not None
+            and time.time() - self.time_start >= self.max_time_per_run
+        ):
+            print(
+                f"Stop run: Time limit of {self.max_time_per_run} s " f"exceeded."
+            )
+            return True
         # check epoch limit for run
         if self.max_epochs_per_run is not None:
             if epoch is None:
@@ -135,12 +135,11 @@ class RuntimeLimits:
                 )
                 return True
         # check total epoch limit
-        if self.max_epochs_total is not None:
-            if epoch >= self.max_epochs_total:
-                print(
-                    f"Stop run: Total epoch limit of {self.max_epochs_total} reached."
-                )
-                return True
+        if self.max_epochs_total is not None and epoch >= self.max_epochs_total:
+            print(
+                f"Stop run: Total epoch limit of {self.max_epochs_total} reached."
+            )
+            return True
         # return False if none of the limits is exceeded
         return False
 
@@ -159,9 +158,11 @@ class RuntimeLimits:
             flag whether local runtime limits are exceeded
         """
         # check time limit for run
-        if self.max_time_per_run is not None:
-            if time.time() - self.time_start >= self.max_time_per_run:
-                return True
+        if (
+            self.max_time_per_run is not None
+            and time.time() - self.time_start >= self.max_time_per_run
+        ):
+            return True
         # check epoch limit for run
         if self.max_epochs_per_run is not None:
             if epoch is None:
@@ -221,7 +222,7 @@ def copyfile(src, dst):
     :param dst:
     :return:
     """
-    os.system("cp -p %s %s" % (src, dst))
+    os.system(f"cp -p {src} {dst}")
 
 
 def save_model(pm, log_dir, model_prefix="model", checkpoint_epochs=None):

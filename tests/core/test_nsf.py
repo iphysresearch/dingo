@@ -184,7 +184,7 @@ def test_backward_pass_for_log_prob_of_nsf(data_setup_nsf_small):
     # with the context information d.zz. We check that (i) the loss and (ii)
     # the posterior samples improve during training.
     losses = []
-    for idx in range(40):
+    for _ in range(40):
         yy = d.yy + 0.02 * torch.rand_like(d.yy)
         xx = torch.rand_like(d.xx)
         loss = - torch.mean(model(yy, xx, d.zz))

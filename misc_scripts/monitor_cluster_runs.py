@@ -22,15 +22,14 @@ def is_condor_process(row):
 def get_condor_info(train_dir, condor_processes=None):
     if condor_processes is None:
         return ""
-    else:
-        condor_process = [pr for pr in condor_processes if train_dir == pr[10]]
-        if len(condor_process) == 0:
-            return ""
-        elif len(condor_process) > 1:
-            IDs = ", ".join([pr[0] for pr in condor_process])
-            print(f"Warning: multiple processes for run {train_dir}: IDs {IDs}.")
-        condor_process = condor_process[0]
-        return " ".join((condor_process[4], condor_process[0], condor_process[5]))
+    condor_process = [pr for pr in condor_processes if train_dir == pr[10]]
+    if not condor_process:
+        return ""
+    elif len(condor_process) > 1:
+        IDs = ", ".join([pr[0] for pr in condor_process])
+        print(f"Warning: multiple processes for run {train_dir}: IDs {IDs}.")
+    condor_process = condor_process[0]
+    return " ".join((condor_process[4], condor_process[0], condor_process[5]))
 
 
 def get_info(train_dir, common_path="", condor_processes=None):
@@ -55,10 +54,7 @@ def get_info(train_dir, common_path="", condor_processes=None):
         time_since_last_epoch = ""
     # parse info.err to check for errors
     try:
-        if getsize(join(train_dir, "info.err")) > 0:
-            error = "X"
-        else:
-            error = ""
+        error = "X" if getsize(join(train_dir, "info.err")) > 0 else ""
     except FileNotFoundError:
         error = ""
     # parse info.out to get train time of last epoch
@@ -103,10 +99,9 @@ else:
     condor_processes = None
 
 
-table_data = []
-for train_dir in runs:
-    table_data.append(get_info(train_dir, common_path, condor_processes))
-
+table_data = [
+    get_info(train_dir, common_path, condor_processes) for train_dir in runs
+]
 headers = [
     "train dir",
     "condor_info",

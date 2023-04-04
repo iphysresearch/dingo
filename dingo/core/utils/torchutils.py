@@ -39,10 +39,7 @@ def forward_pass_with_unpacked_tuple(
     :return: torch.Tensor
         output of the forward pass, either model(*x) or model(x)
     """
-    if isinstance(x, Tuple):
-        return model(*x)
-    else:
-        return model(x)
+    return model(*x) if isinstance(x, Tuple) else model(x)
 
 
 def get_number_of_model_parameters(
@@ -100,9 +97,9 @@ def get_optimizer_from_kwargs(
         "RMSprop": torch.optim.RMSprop,
         "sgd": torch.optim.SGD,
     }
-    if not "type" in optimizer_kwargs:
+    if "type" not in optimizer_kwargs:
         raise KeyError("Optimizer type needs to be specified.")
-    if not optimizer_kwargs["type"].lower() in optimizers_dict:
+    if optimizer_kwargs["type"].lower() not in optimizers_dict:
         raise ValueError("No valid optimizer specified.")
     optimizer = optimizers_dict[optimizer_kwargs.pop("type")]
     return optimizer(model_parameters, **optimizer_kwargs)
@@ -135,9 +132,9 @@ def get_scheduler_from_kwargs(
         "cosine": torch.optim.lr_scheduler.CosineAnnealingLR,
         "reduce_on_plateau": torch.optim.lr_scheduler.ReduceLROnPlateau,
     }
-    if not "type" in scheduler_kwargs:
+    if "type" not in scheduler_kwargs:
         raise KeyError("Scheduler type needs to be specified.")
-    if not scheduler_kwargs["type"].lower() in schedulers_dict:
+    if scheduler_kwargs["type"].lower() not in schedulers_dict:
         raise ValueError("No valid scheduler specified.")
     scheduler = schedulers_dict[scheduler_kwargs.pop("type")]
     return scheduler(optimizer, **scheduler_kwargs)
@@ -266,6 +263,4 @@ def set_requires_grad_flag(
 
 
 def torch_detach_to_cpu(x):
-    if isinstance(x, torch.Tensor):
-        return x.detach().cpu()
-    return x
+    return x.detach().cpu() if isinstance(x, torch.Tensor) else x

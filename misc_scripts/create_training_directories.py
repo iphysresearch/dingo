@@ -6,9 +6,7 @@ import argparse
 
 
 def none_or_str(value):
-    if value == "None":
-        return None
-    return value
+    return None if value == "None" else value
 
 
 def parse_args():

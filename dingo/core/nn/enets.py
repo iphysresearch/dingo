@@ -64,10 +64,10 @@ class LinearProjectionRB(nn.Module):
         self.num_blocks, self.num_channels, self.num_bins = self.input_dims
         self.n_rb = n_rb
 
-        # define a linear projection layer for each block
-        layers = []
-        for _ in range(self.num_blocks):
-            layers.append(nn.Linear(self.num_bins * self.num_channels, self.n_rb * 2))
+        layers = [
+            nn.Linear(self.num_bins * self.num_channels, self.n_rb * 2)
+            for _ in range(self.num_blocks)
+        ]
         self.layers_rb = nn.ModuleList(layers)
 
         # initialize layers with reduced basis
@@ -149,9 +149,10 @@ class LinearProjectionRB(nn.Module):
                 f"Expected {(self.num_blocks, self.num_channels, self.num_bins)}, "
                 f"got {tuple(x.shape[1:])}."
             )
-        out = []
-        for ind in range(self.num_blocks):
-            out.append(self.layers_rb[ind](x[:, ind, ...].flatten(start_dim=1)))
+        out = [
+            self.layers_rb[ind](x[:, ind, ...].flatten(start_dim=1))
+            for ind in range(self.num_blocks)
+        ]
         x = torch.cat(out, dim=1)
         return x
 
@@ -354,11 +355,6 @@ def create_enet_with_projection_layer_and_dense_resnet(
     )
     enet = nn.Sequential(module_1, module_2)
 
-    if not added_context:
-        return enet
-    else:
-        return ModuleMerger((enet, nn.Identity()))
+    return ModuleMerger((enet, nn.Identity())) if added_context else enet
 
 
-if __name__ == "__main__":
-    pass

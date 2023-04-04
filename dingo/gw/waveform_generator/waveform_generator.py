@@ -70,9 +70,8 @@ class WaveformGenerator:
         """
         if not isinstance(approximant, str):
             raise ValueError("approximant should be a string, but got", approximant)
-        else:
-            self.approximant_str = approximant
-            self.approximant = LS.GetApproximantFromString(approximant)
+        self.approximant_str = approximant
+        self.approximant = LS.GetApproximantFromString(approximant)
 
         if not issubclass(type(domain), Domain):
             raise ValueError(
@@ -186,22 +185,18 @@ class WaveformGenerator:
         except Exception as e:
             if not catch_waveform_errors:
                 raise
+            EDOM = e.args[0] == "Internal function call failed: Input domain error"
+            if EDOM:
+                warnings.warn(
+                    f"Evaluating the waveform failed with error: {e}\n"
+                    f"The parameters were {parameters_lal}\n"
+                )
+                pol_nan = np.ones(len(self.domain)) * np.nan
+                wf_dict = {"h_plus": pol_nan, "h_cross": pol_nan}
             else:
-                EDOM = e.args[0] == "Internal function call failed: Input domain error"
-                if EDOM:
-                    warnings.warn(
-                        f"Evaluating the waveform failed with error: {e}\n"
-                        f"The parameters were {parameters_lal}\n"
-                    )
-                    pol_nan = np.ones(len(self.domain)) * np.nan
-                    wf_dict = {"h_plus": pol_nan, "h_cross": pol_nan}
-                else:
-                    raise
+                raise
 
-        if self.transform is not None:
-            return self.transform(wf_dict)
-        else:
-            return wf_dict
+        return self.transform(wf_dict) if self.transform is not None else wf_dict
 
     def _convert_to_scalar(self, x: Union[np.ndarray, float]) -> Number:
         """
@@ -216,15 +211,14 @@ class WaveformGenerator:
         -------
         A number
         """
-        if isinstance(x, np.ndarray):
-            if x.shape == () or x.shape == (1,):
-                return x.item()
-            else:
-                raise ValueError(
-                    f"Expected an array of length one, but shape = {x.shape}"
-                )
-        else:
+        if not isinstance(x, np.ndarray):
             return x
+        if x.shape in [(), (1,)]:
+            return x.item()
+        else:
+            raise ValueError(
+                f"Expected an array of length one, but shape = {x.shape}"
+            )
 
     def _convert_parameters_to_lal_frame(
         self,
@@ -318,25 +312,59 @@ class WaveformGenerator:
         if isinstance(self.domain, FrequencyDomain):
             delta_f = self.domain.delta_f
             f_max = self.domain.f_max
-            if self.f_start is not None:
-                f_min = self.f_start
-            else:
-                f_min = self.domain.f_min
+            f_min = self.f_start if self.f_start is not None else self.domain.f_min
             # parameters needed for TD waveforms
             delta_t = 0.5 / self.domain.f_max
         elif isinstance(self.domain, TimeDomain):
             raise NotImplementedError("Time domain not supported yet.")
-            # FIXME: compute f_min from duration or specify it if SimInspiralTD
-            #  is used for a native FD waveform
-            f_min = 20.0
-            delta_t = self.domain.delta_t
-            # parameters needed for FD waveforms
-            f_max = 1.0 / self.domain.delta_t
-            delta_f = 1.0 / self.domain.duration
         else:
             raise ValueError(f"Unsupported domain type {type(self.domain)}.")
 
-        if lal_target_function == "SimInspiralFD":
+        if (
+            lal_target_function
+            == "SimIMRPhenomXPCalculateModelParametersFromSourceFrame"
+        ):
+            lal_parameter_tuple = (
+                masses + (f_ref,) + (phase, iota) + spins_cartesian + (lal_params,)
+            )
+
+        elif lal_target_function == "SimInspiralChooseFDModes":
+            domain_pars = (delta_f, f_min, f_max, f_ref)
+            domain_pars = tuple(float(p) for p in domain_pars)
+            lal_parameter_tuple = (
+                masses
+                + spins_cartesian
+                + domain_pars
+                + (phase, r, iota)
+                + (lal_params, self.approximant)
+            )
+
+        elif lal_target_function == "SimInspiralChooseTDModes":
+            # LS.SimInspiralChooseTDModes takes parameters:
+            #   phiRef=0 (for lal legacy reasons), delta_t,
+            #   m1, m2, S1x, S1y, S1z, S2x, S2y, S2z,
+            #   f_min, f_ref
+            #   distance,
+            #   lal_params, l_max, approximant
+            domain_pars = (delta_t, f_min, f_ref)
+            domain_pars = tuple(float(p) for p in domain_pars)
+            if "l_max" not in parameter_dict:
+                l_max = 5  # hard code l_max for now
+            lal_parameter_tuple = (
+                (
+                    0.0,
+                    domain_pars[0],
+                )  # domain_pars[0] = delta_t
+                + masses
+                + spins_cartesian
+                + domain_pars[1:]  # domain_pars[1:] = f_min, f_ref
+                + (r,)
+                + (lal_params, l_max, self.approximant)
+            )
+            # also pass iota, since this is needed for recombination of the modes
+            lal_parameter_tuple = (lal_parameter_tuple, iota)
+
+        elif lal_target_function == "SimInspiralFD":
             # LS.SimInspiralFD takes parameters:
             #   m1, m2, S1x, S1y, S1z, S2x, S2y, S2z,
             #   distance, inclination, phiRef,
@@ -371,50 +399,6 @@ class WaveformGenerator:
                 + domain_pars
                 + (lal_params, self.approximant)
             )
-        elif lal_target_function == "SimInspiralChooseFDModes":
-            domain_pars = (delta_f, f_min, f_max, f_ref)
-            domain_pars = tuple(float(p) for p in domain_pars)
-            lal_parameter_tuple = (
-                masses
-                + spins_cartesian
-                + domain_pars
-                + (phase, r, iota)
-                + (lal_params, self.approximant)
-            )
-
-        elif (
-            lal_target_function
-            == "SimIMRPhenomXPCalculateModelParametersFromSourceFrame"
-        ):
-            lal_parameter_tuple = (
-                masses + (f_ref,) + (phase, iota) + spins_cartesian + (lal_params,)
-            )
-
-        elif lal_target_function == "SimInspiralChooseTDModes":
-            # LS.SimInspiralChooseTDModes takes parameters:
-            #   phiRef=0 (for lal legacy reasons), delta_t,
-            #   m1, m2, S1x, S1y, S1z, S2x, S2y, S2z,
-            #   f_min, f_ref
-            #   distance,
-            #   lal_params, l_max, approximant
-            domain_pars = (delta_t, f_min, f_ref)
-            domain_pars = tuple(float(p) for p in domain_pars)
-            if "l_max" not in parameter_dict:
-                l_max = 5  # hard code l_max for now
-            lal_parameter_tuple = (
-                (
-                    0.0,
-                    domain_pars[0],
-                )  # domain_pars[0] = delta_t
-                + masses
-                + spins_cartesian
-                + domain_pars[1:]  # domain_pars[1:] = f_min, f_ref
-                + (r,)
-                + (lal_params, l_max, self.approximant)
-            )
-            # also pass iota, since this is needed for recombination of the modes
-            lal_parameter_tuple = (lal_parameter_tuple, iota)
-
         return lal_parameter_tuple
 
     def setup_mode_array(self, mode_list: List[Tuple]) -> lal.Dict:
@@ -537,8 +521,7 @@ class WaveformGenerator:
         time_shift = np.exp(-1j * 2 * np.pi * dt * frequency_array)
         h_plus *= time_shift
         h_cross *= time_shift
-        pol_dict = {"h_plus": h_plus, "h_cross": h_cross}
-        return pol_dict
+        return {"h_plus": h_plus, "h_cross": h_cross}
 
     def generate_hplus_hcross_m(
         self, parameters: Dict[str, float]
@@ -605,40 +588,34 @@ class WaveformGenerator:
         elif not isinstance(list(parameters.values())[0], float):
             raise ValueError("parameters dictionary must contain floats", parameters)
 
-        if isinstance(self.domain, FrequencyDomain):
-            # Generate FD modes in for frequencies [-f_max, ..., 0, ..., f_max].
-            if LS.SimInspiralImplementedFDApproximants(self.approximant):
-                # Step 1: generate waveform modes in L0 frame in native domain of
-                # approximant (here: FD)
-                hlm_fd, iota = self.generate_FD_modes_LO(parameters)
-
-                # Step 2: Transform modes to target domain.
-                # Not required here, as approximant domain and target domain are both FD.
-
-            else:
-                assert LS.SimInspiralImplementedTDApproximants(self.approximant)
-                # Step 1: generate waveform modes in L0 frame in native domain of
-                # approximant (here: TD)
-                hlm_td, iota = self.generate_TD_modes_L0(parameters)
-
-                # Step 2: Transform modes to target domain.
-                # This requires tapering of TD modes, and FFT to transform to FD.
-                wfg_utils.taper_td_modes_in_place(hlm_td)
-                hlm_fd = wfg_utils.td_modes_to_fd_modes(hlm_td, self.domain)
-
-            # Step 3: Separate negative and positive frequency parts of the modes,
-            # and add contributions according to their transformation behavior under
-            # phase shifts.
-            pol_m = wfg_utils.get_polarizations_from_fd_modes_m(
-                hlm_fd, iota, parameters["phase"]
-            )
-
-        else:
+        if not isinstance(self.domain, FrequencyDomain):
             raise NotImplementedError(
                 f"Target domain of type {type(self.domain)} not yet implemented."
             )
 
-        return pol_m
+        # Generate FD modes in for frequencies [-f_max, ..., 0, ..., f_max].
+        if LS.SimInspiralImplementedFDApproximants(self.approximant):
+            # Step 1: generate waveform modes in L0 frame in native domain of
+            # approximant (here: FD)
+            hlm_fd, iota = self.generate_FD_modes_LO(parameters)
+
+            # Step 2: Transform modes to target domain.
+            # Not required here, as approximant domain and target domain are both FD.
+
+        else:
+            assert LS.SimInspiralImplementedTDApproximants(self.approximant)
+            # Step 1: generate waveform modes in L0 frame in native domain of
+            # approximant (here: TD)
+            hlm_td, iota = self.generate_TD_modes_L0(parameters)
+
+            # Step 2: Transform modes to target domain.
+            # This requires tapering of TD modes, and FFT to transform to FD.
+            wfg_utils.taper_td_modes_in_place(hlm_td)
+            hlm_fd = wfg_utils.td_modes_to_fd_modes(hlm_td, self.domain)
+
+        return wfg_utils.get_polarizations_from_fd_modes_m(
+            hlm_fd, iota, parameters["phase"]
+        )
 
     def generate_FD_modes_LO(self, parameters):
         """
@@ -657,31 +634,7 @@ class WaveformGenerator:
             values.
         iota: float
         """
-        # TD approximants that are implemented in J frame. Currently tested for:
-        #   101: IMRPhenomXPHM
-        if self.approximant in [101]:
-            parameters_lal_fd_modes = self._convert_parameters_to_lal_frame(
-                {**parameters, "f_ref": self.f_ref},
-                lal_target_function="SimInspiralChooseFDModes",
-            )
-            iota = parameters_lal_fd_modes[14]
-            hlm_fd = LS.SimInspiralChooseFDModes(*parameters_lal_fd_modes)
-            # unpack linked list, convert lal objects to arrays
-            hlm_fd = wfg_utils.linked_list_modes_to_dict_modes(hlm_fd)
-            hlm_fd = {k: v.data.data for k, v in hlm_fd.items()}
-            # For the waveform models considered here (e.g., IMRPhenomXPHM), the modes
-            # are returned in the J frame (where the observer is at inclination=theta_JN,
-            # azimuth=0). In this frame, the dependence on the reference phase enters
-            # via the modes themselves. We need to convert to the L0 frame so that the
-            # dependence on phase enters via the spherical harmonics.
-            hlm_fd = frame_utils.convert_J_to_L0_frame(
-                hlm_fd,
-                parameters,
-                self,
-                spin_conversion_phase=self.spin_conversion_phase,
-            )
-            return hlm_fd, iota
-        else:
+        if self.approximant not in [101]:
             raise NotImplementedError(
                 f"Approximant {LS.GetApproximantFromString(self.approximant)} not "
                 f"implemented. When adding this approximant to this method, make sure "
@@ -692,6 +645,27 @@ class WaveformGenerator:
                 f"corresponding if statement. However, when doing this please make sure "
                 f"to test that this works as intended! Ideally, add some unit tests."
             )
+        parameters_lal_fd_modes = self._convert_parameters_to_lal_frame(
+            {**parameters, "f_ref": self.f_ref},
+            lal_target_function="SimInspiralChooseFDModes",
+        )
+        iota = parameters_lal_fd_modes[14]
+        hlm_fd = LS.SimInspiralChooseFDModes(*parameters_lal_fd_modes)
+        # unpack linked list, convert lal objects to arrays
+        hlm_fd = wfg_utils.linked_list_modes_to_dict_modes(hlm_fd)
+        hlm_fd = {k: v.data.data for k, v in hlm_fd.items()}
+        # For the waveform models considered here (e.g., IMRPhenomXPHM), the modes
+        # are returned in the J frame (where the observer is at inclination=theta_JN,
+        # azimuth=0). In this frame, the dependence on the reference phase enters
+        # via the modes themselves. We need to convert to the L0 frame so that the
+        # dependence on phase enters via the spherical harmonics.
+        hlm_fd = frame_utils.convert_J_to_L0_frame(
+            hlm_fd,
+            parameters,
+            self,
+            spin_conversion_phase=self.spin_conversion_phase,
+        )
+        return hlm_fd, iota
 
     def generate_TD_modes_L0(self, parameters):
         """
@@ -710,16 +684,7 @@ class WaveformGenerator:
             values.
         iota: float
         """
-        # TD approximants that are implemented in L0 frame. Currently tested for:
-        #   52: SEOBNRv4PHM
-        if self.approximant in [52]:
-            parameters_lal_td_modes, iota = self._convert_parameters_to_lal_frame(
-                {**parameters, "f_ref": self.f_ref},
-                lal_target_function="SimInspiralChooseTDModes",
-            )
-            hlm_td = LS.SimInspiralChooseTDModes(*parameters_lal_td_modes)
-            return wfg_utils.linked_list_modes_to_dict_modes(hlm_td), iota
-        else:
+        if self.approximant not in [52]:
             raise NotImplementedError(
                 f"Approximant {LS.GetApproximantFromString(self.approximant)} not "
                 f"implemented. When adding this approximant to this method, make sure "
@@ -730,6 +695,12 @@ class WaveformGenerator:
                 f"corresponding if statement. However, when doing this please make sure "
                 f"to test that this works as intended! Ideally, add some unit tests."
             )
+        parameters_lal_td_modes, iota = self._convert_parameters_to_lal_frame(
+            {**parameters, "f_ref": self.f_ref},
+            lal_target_function="SimInspiralChooseTDModes",
+        )
+        hlm_td = LS.SimInspiralChooseTDModes(*parameters_lal_td_modes)
+        return wfg_utils.linked_list_modes_to_dict_modes(hlm_td), iota
 
     def generate_TD_waveform(self, parameters_lal: Tuple) -> Dict[str, np.ndarray]:
         """
@@ -760,8 +731,7 @@ class WaveformGenerator:
         hp, hc = LS.SimInspiralTD(*parameters_lal)
         h_plus = hp.data.data
         h_cross = hc.data.data
-        pol_dict = {"h_plus": h_plus, "h_cross": h_cross}
-        return pol_dict
+        return {"h_plus": h_plus, "h_cross": h_cross}
 
 
 def SEOBNRv4PHM_maximum_starting_frequency(
@@ -789,8 +759,7 @@ def SEOBNRv4PHM_maximum_starting_frequency(
         The largest possible starting frequency in Hz
     """
     total_mass_sec = total_mass * lal.MTSUN_SI
-    f_max_Hz = fudge * 10.5 ** (-1.5) / (np.pi * total_mass_sec)
-    return f_max_Hz
+    return fudge * 10.5 ** (-1.5) / (np.pi * total_mass_sec)
 
 
 def generate_waveforms_task_func(
@@ -845,11 +814,10 @@ def generate_waveforms_parallel(
         polarizations_list = pool.map(task_func, task_data)
     else:
         polarizations_list = list(map(task_func, task_data))
-    polarizations = {
+    return {
         pol: np.stack([wf[pol] for wf in polarizations_list])
         for pol in polarizations_list[0].keys()
     }
-    return polarizations
 
 
 def sum_contributions_m(x_m, phase_shift=0.0):

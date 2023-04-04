@@ -151,7 +151,7 @@ def test_pm_saving_and_loading_basic(data_setup_pm_1):
         assert torch.all(
             param_0.data == param_1.data
         ), "Saved and loaded model have different parameter data."
-        if not torch.std(param_0) == 0:
+        if torch.std(param_0) != 0:
             assert not torch.all(
                 param_0.data == param_2.data
             ), "Model initialization does not seem to be random."

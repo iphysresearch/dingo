@@ -95,13 +95,30 @@ def create_base_transform(
 
     activation_fn = torchutils.get_activation_function_from_string(activation)
 
-    if base_transform_type == "rq-coupling":
-        if param_dim == 1:
-            mask = torch.tensor([1], dtype=torch.uint8)
-        else:
-            mask = nflows.utils.create_alternating_binary_mask(
+    if base_transform_type == "rq-autoregressive":
+        return transforms.MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
+            features=param_dim,
+            hidden_features=hidden_dim,
+            context_features=context_dim,
+            num_bins=num_bins,
+            tails="linear",
+            tail_bound=tail_bound,
+            num_blocks=num_transform_blocks,
+            use_residual_blocks=True,
+            random_mask=False,
+            activation=activation_fn,
+            dropout_probability=dropout_probability,
+            use_batch_norm=batch_norm,
+        )
+
+    elif base_transform_type == "rq-coupling":
+        mask = (
+            torch.tensor([1], dtype=torch.uint8)
+            if param_dim == 1
+            else nflows.utils.create_alternating_binary_mask(
                 param_dim, even=(i % 2 == 0)
             )
+        )
         return transforms.PiecewiseRationalQuadraticCouplingTransform(
             mask=mask,
             transform_net_create_fn=(
@@ -120,22 +137,6 @@ def create_base_transform(
             tails="linear",
             tail_bound=tail_bound,
             apply_unconditional_transform=apply_unconditional_transform,
-        )
-
-    elif base_transform_type == "rq-autoregressive":
-        return transforms.MaskedPiecewiseRationalQuadraticAutoregressiveTransform(
-            features=param_dim,
-            hidden_features=hidden_dim,
-            context_features=context_dim,
-            num_bins=num_bins,
-            tails="linear",
-            tail_bound=tail_bound,
-            num_blocks=num_transform_blocks,
-            use_residual_blocks=True,
-            random_mask=False,
-            activation=activation_fn,
-            dropout_probability=dropout_probability,
-            use_batch_norm=batch_norm,
         )
 
     else:
@@ -168,13 +169,16 @@ def create_transform(
         the NSF transform sequence
     """
 
-    transform = transforms.CompositeTransform(
+    return transforms.CompositeTransform(
         [
             transforms.CompositeTransform(
                 [
                     create_linear_transform(param_dim),
                     create_base_transform(
-                        i, param_dim, context_dim=context_dim, **base_transform_kwargs
+                        i,
+                        param_dim,
+                        context_dim=context_dim,
+                        **base_transform_kwargs
                     ),
                 ]
             )
@@ -182,8 +186,6 @@ def create_transform(
         ]
         + [create_linear_transform(param_dim)]
     )
-
-    return transform
 
 
 class FlowWrapper(nn.Module):
@@ -208,11 +210,7 @@ class FlowWrapper(nn.Module):
     def log_prob(self, y, *x):
         if self.embedding_net is not None:
             x = torchutils.forward_pass_with_unpacked_tuple(self.embedding_net, x)
-        if len(x) > 0:
-            return self.flow.log_prob(y, x)
-        else:
-            # if there is no context
-            return self.flow.log_prob(y)
+        return self.flow.log_prob(y, x) if len(x) > 0 else self.flow.log_prob(y)
 
     def sample(self, *x, num_samples=1):
         if self.embedding_net is not None:
@@ -228,18 +226,14 @@ class FlowWrapper(nn.Module):
             x = torchutils.forward_pass_with_unpacked_tuple(self.embedding_net, x)
         if len(x) > 0:
             sample, log_prob = self.flow.sample_and_log_prob(num_samples, x)
-            return torch.squeeze(sample), torch.squeeze(log_prob)
         else:
             # if there is no context, omit the context argument
             sample, log_prob = self.flow.sample_and_log_prob(num_samples)
-            return torch.squeeze(sample), torch.squeeze(log_prob)
+
+        return torch.squeeze(sample), torch.squeeze(log_prob)
 
     def forward(self, y, *x):
-        if len(x) > 0:
-            return self.log_prob(y, *x)
-        else:
-            # if there is no context, omit the context argument
-            return self.log_prob(y)
+        return self.log_prob(y, *x) if x else self.log_prob(y)
 
 
 def create_nsf_model(
@@ -349,8 +343,7 @@ def create_nsf_with_rb_projection_embedding_net(
         **embedding_net_kwargs
     )
     flow = create_nsf_model(**nsf_kwargs)
-    model = FlowWrapper(flow, embedding_net)
-    return model
+    return FlowWrapper(flow, embedding_net)
 
 
 def autocomplete_model_kwargs_nsf(model_kwargs, data_sample):
@@ -391,5 +384,3 @@ def autocomplete_model_kwargs_nsf(model_kwargs, data_sample):
     # return model_kwargs
 
 
-if __name__ == "__main__":
-    pass

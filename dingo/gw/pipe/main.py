@@ -81,7 +81,7 @@ def fill_in_arguments_from_model(args):
         importance_sampling_updates = {
             k.replace("-", "_"): v for k, v in importance_sampling_updates.items()
         }
-    return {**changed_args, **importance_sampling_updates}
+    return changed_args | importance_sampling_updates
 
 
 class MainInput(BilbyMainInput):
@@ -222,15 +222,8 @@ class MainInput(BilbyMainInput):
         self.device = args.device
         self.simple_submission = args.simple_submission
 
-        if args.extra_lines:
-            self.extra_lines = args.extra_lines
-        else:
-            self.extra_lines = []
-
-        if args.sampling_requirements:
-            self.sampling_requirements = args.sampling_requirements
-        else:
-            self.sampling_requirements = []
+        self.extra_lines = args.extra_lines or []
+        self.sampling_requirements = args.sampling_requirements or []
 
     @property
     def request_cpus_importance_sampling(self):
@@ -257,12 +250,12 @@ def write_complete_config_file(parser, args, inputs, input_cls=MainInput):
     for key, val in args_dict.items():
         if key == "label":
             continue
-        if isinstance(val, str):
-            if os.path.isfile(val) or os.path.isdir(val):
-                setattr(args, key, os.path.abspath(val))
-        if isinstance(val, list):
-            if isinstance(val[0], str):
-                setattr(args, key, f"[{', '.join(val)}]")
+        if isinstance(val, str) and (
+            os.path.isfile(val) or os.path.isdir(val)
+        ):
+            setattr(args, key, os.path.abspath(val))
+        if isinstance(val, list) and isinstance(val[0], str):
+            setattr(args, key, f"[{', '.join(val)}]")
     # args.sampler_kwargs = str(inputs.sampler_kwargs)
     args.importance_sampling_updates = str(inputs.importance_sampling_updates)
     args.submit = False

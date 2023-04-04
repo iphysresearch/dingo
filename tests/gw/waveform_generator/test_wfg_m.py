@@ -28,8 +28,7 @@ def uniform_fd_domain():
         "f_max": 2048.0,
         "delta_f": 0.125,
     }
-    domain = build_domain(domain_settings)
-    return domain
+    return build_domain(domain_settings)
 
 
 @pytest.fixture
@@ -50,8 +49,7 @@ def intrinsic_prior():
         "phi_jl": 'bilby.core.prior.Uniform(minimum=0.0, maximum=2*np.pi, boundary="periodic")',
         "geocent_time": 0.0,
     }
-    prior = build_prior_with_defaults(intrinsic_dict)
-    return prior
+    return build_prior_with_defaults(intrinsic_dict)
 
 
 def test_generate_hplus_hcross_m_SEOBNRv4PHM(uniform_fd_domain, intrinsic_prior):
@@ -102,7 +100,7 @@ def test_generate_hplus_hcross_m_IMRPhenomXPHM(uniform_fd_domain, intrinsic_prio
     )
 
     mismatches = []
-    for idx in range(10):
+    for _ in range(10):
         p = prior.sample()
         phase_shift = np.random.uniform(high=2 * np.pi)
 

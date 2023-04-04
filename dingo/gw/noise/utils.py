@@ -103,7 +103,7 @@ def get_time_segments(settings):
 
     for detector in settings["detectors"]:
 
-        key = run + "_" + detector
+        key = f"{run}_{detector}"
         urls = URL_DIRECTORY[key]
 
         starts, stops, durations = [], [], []
@@ -167,8 +167,7 @@ def merge_datasets(asd_dataset_list):
     # copy settings from last dataset
     merged_dict["settings"] = copy.deepcopy(asd_list[-1].settings)
 
-    merged = ASDDataset(dictionary=merged_dict)
-    return merged
+    return ASDDataset(dictionary=merged_dict)
 
 
 def merge_datasets_cli():
@@ -231,7 +230,7 @@ def merge_datasets_cli():
                 if isfile(join(file_dir, f"asd_{seg[0]}.hdf5"))
             ]
         else:  # if no time_segments are specified, use the first 'num_parts' ASD datasets
-            filenames = sorted(glob.glob(join(file_dir, f"asd_*.hdf5")))
+            filenames = sorted(glob.glob(join(file_dir, "asd_*.hdf5")))
             num_parts = min(args.num_parts, len(filenames)) if args.num_parts > 0 else len(filenames)
             filenames = filenames[:num_parts]
 

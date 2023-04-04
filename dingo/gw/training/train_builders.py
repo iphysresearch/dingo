@@ -45,13 +45,12 @@ def build_dataset(data_settings):
     """
     # Build and truncate datasets
     domain_update = data_settings.get("domain_update", None)
-    wfd = WaveformDataset(
+    return WaveformDataset(
         file_name=data_settings["waveform_dataset_path"],
         precision="single",
         domain_update=domain_update,
         svd_size_update=data_settings.get("svd_size_update"),
     )
-    return wfd
 
 
 def set_train_transforms(wfd, data_settings, asd_dataset_path, omit_transforms=None):
@@ -73,7 +72,7 @@ def set_train_transforms(wfd, data_settings, asd_dataset_path, omit_transforms=N
         List of sub-transforms to omit from the full composition.
     """
 
-    print(f"Setting train transforms.")
+    print("Setting train transforms.")
     if omit_transforms is not None:
         print("Omitting \n\t" + "\n\t".join([t.__name__ for t in omit_transforms]))
 
@@ -308,7 +307,7 @@ def build_svd_for_embedding_network(
     print(f"...this took {time.time() - time_start:.0f} s.")
 
     if out_dir is not None:
-        print(f"Testing SVD basis matrices.")
+        print("Testing SVD basis matrices.")
         for ifo, basis in basis_dict.items():
             print(f"...{ifo}:")
             basis.compute_test_mismatches(
@@ -331,7 +330,7 @@ def build_svd_for_embedding_network(
         V = basis_dict[ifo].V
         assert np.allclose(V[: wfd.domain.min_idx], 0)
         V = V[wfd.domain.min_idx :]
-        print("      " + str(V.shape))
+        print(f"      {str(V.shape)}")
         V_rb_list.append(V)
     print("\n")
     return V_rb_list
